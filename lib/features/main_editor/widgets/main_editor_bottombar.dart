@@ -101,29 +101,36 @@ class MainEditorBottombar extends StatelessWidget {
             controller: controllers.bottomBarScrollCtrl,
             scrollbarOrientation: ScrollbarOrientation.top,
             thickness: isDesktop ? null : 0,
-            child: BottomAppBar(
-              height: kBottomNavigationBarHeight,
+            child: Material( // Wrap with Material to apply shape
               color: configs.mainEditor.style.bottomBarBackground,
-              padding: EdgeInsets.zero,
-              child: Center(
-                child: SingleChildScrollView(
-                  controller: controllers.bottomBarScrollCtrl,
-                  scrollDirection: Axis.horizontal,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minWidth: min(
-                          sizesManager.lastScreenSize.width != 0
-                              ? sizesManager.lastScreenSize.width
-                              : constraints.maxWidth,
-                          600),
-                      maxWidth: 600,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        mainAxisSize: MainAxisSize.min,
-                        children: _buildEditorButtons(),
+              shape: const RoundedRectangleBorder( // Apply rounded corners
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(14.0),
+                  topRight: Radius.circular(14.0),
+                ),
+              ),
+              child: SizedBox(
+                height: kBottomNavigationBarHeight+10,
+                child: Center(
+                  child: SingleChildScrollView(
+                    controller: controllers.bottomBarScrollCtrl,
+                    scrollDirection: Axis.horizontal,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minWidth: min(
+                            sizesManager.lastScreenSize.width != 0
+                                ? sizesManager.lastScreenSize.width
+                                : constraints.maxWidth,
+                            600),
+                        maxWidth: 600,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          mainAxisSize: MainAxisSize.min,
+                          children: _buildEditorButtons(),
+                        ),
                       ),
                     ),
                   ),
@@ -135,6 +142,7 @@ class MainEditorBottombar extends StatelessWidget {
       }),
     );
   }
+
 
   /// Builds a list of editor action buttons dynamically
   List<Widget> _buildEditorButtons() {
