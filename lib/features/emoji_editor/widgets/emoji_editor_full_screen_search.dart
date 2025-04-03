@@ -1,5 +1,6 @@
-import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
+
+import '/plugins/emoji_picker_flutter/emoji_picker_flutter.dart';
 
 /// Full-screen search view for emoji editor, allowing emoji search and
 /// selection.
@@ -43,7 +44,7 @@ class EmojiEditorFullScreenSearchViewState
   void onTextInputChanged(String text) {
     links.clear();
     results.clear();
-    utils.searchEmoji(text, widget.state.categoryEmoji).then(
+    utils.searchEmoji(text, widget.config.emojiSet!(widget.config.locale)).then(
           (value) => setState(
             () => _updateResults(value),
           ),

@@ -251,8 +251,9 @@ class ExportStateHistory {
         minifier.convertSizeKey('height'): imageInfos.rawSize.height,
       },
       minifier.convertMainKey('lastRenderedImgSize'): {
-        minifier.convertSizeKey('width'): imageInfos.renderedSize.width,
-        minifier.convertSizeKey('height'): imageInfos.renderedSize.height,
+        minifier.convertSizeKey('width'): imageInfos.originalRenderedSize.width,
+        minifier.convertSizeKey('height'):
+            imageInfos.originalRenderedSize.height,
       },
     };
   }
@@ -282,8 +283,6 @@ class ExportStateHistory {
           (_configs.exportText && layer.runtimeType == TextLayer) ||
           (_configs.exportEmoji && layer.runtimeType == EmojiLayer)) {
         updateReference(layer);
-
-        // ignore: deprecated_member_use_from_same_package
       } else if (_configs.exportWidgets && layer.runtimeType == WidgetLayer) {
         WidgetLayer widgetLayer = layer as WidgetLayer;
 

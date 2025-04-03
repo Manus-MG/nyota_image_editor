@@ -1,6 +1,3 @@
-// ignore_for_file: deprecated_member_use_from_same_package
-// TODO: Remove deprecated values
-
 import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
@@ -8,11 +5,11 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:mime/mime.dart';
 
 import '/core/models/editor_configs/pro_image_editor_configs.dart';
 import '/core/models/multi_threading/thread_capture_model.dart';
 import '/core/models/multi_threading/thread_request_model.dart';
+import '/plugins/mime/mime.dart';
 import '/shared/utils/decode_image.dart';
 import '/shared/utils/unique_id_generator.dart';
 import '../services/image_converter_service.dart';
@@ -32,6 +29,7 @@ class ContentRecorderController {
   /// Optionally enables thumbnail generation and skips initialization.
   ContentRecorderController({
     required ImageGenerationConfigs configs,
+    required this.isVideoEditor,
     this.enableThumbnailGeneration = false,
     bool ignoreGeneration = false,
   }) : _configs = configs {
@@ -41,6 +39,9 @@ class ContentRecorderController {
 
     _initializeMultiThreading(ignoreGeneration);
   }
+
+  /// A flag indicating whether the editor capture videos.
+  final bool isVideoEditor;
 
   /// A flag indicating whether thumbnail generation is enabled.
   final bool enableThumbnailGeneration;
@@ -80,7 +81,13 @@ class ContentRecorderController {
     }
 
     _imageConverterService = ImageConverterService(
-      configs: _configs,
+      /// For video editing is it important to enforce the following
+      /// configurations
+      configs: _configs.copyWith(
+        cropToDrawingBounds:
+            isVideoEditor ? false : _configs.cropToDrawingBounds,
+        cropToImageBounds: isVideoEditor ? true : _configs.cropToImageBounds,
+      ),
       threadManager: _threadManager,
     );
     _imageRenderService = ImageRenderService(_configs);
@@ -125,6 +132,9 @@ class ContentRecorderController {
     /// platform, but web worker is not supported, we return null.
     if (kIsWeb && stateHistoryScreenshot && (!_threadManager.isSupported)) {
       return null;
+    }
+    if (isVideoEditor) {
+      outputFormat = OutputFormat.png;
     }
 
     outputFormat ??= _configs.outputFormat;
@@ -199,11 +209,12 @@ class ContentRecorderController {
     Widget? widget,
     OutputFormat? outputFormat,
   }) async {
-    if (!(_configs.generateImageInBackground ??
-            _configs.enableBackgroundGeneration) ||
-        !(_configs.generateInsideSeparateThread ??
-            _configs.enableIsolateGeneration)) {
+    if (!_configs.enableBackgroundGeneration ||
+        !_configs.enableIsolateGeneration) {
       return null;
+    }
+    if (isVideoEditor) {
+      outputFormat = OutputFormat.png;
     }
     ThreadCaptureState isolateCaptureState = ThreadCaptureState();
 
@@ -345,9 +356,7 @@ class ContentRecorderController {
 
     /// Check if the output size is too large.
     double outputRatio = imageInfos.pixelRatio;
-    if (!(_configs.captureOnlyDrawingBounds ?? _configs.cropToDrawingBounds) &&
-        context != null &&
-        context.mounted) {
+    if (!_configs.cropToDrawingBounds && context != null && context.mounted) {
       outputRatio =
           max(imageInfos.pixelRatio, MediaQuery.devicePixelRatioOf(context));
     }
@@ -358,8 +367,7 @@ class ContentRecorderController {
     );
     if (!isFormatSame || isOutputSizeTooLarge) {
       final ui.Image image = await decodeImageFromList(bytes);
-      if (_configs.generateInsideSeparateThread ??
-          _configs.enableIsolateGeneration) {
+      if (_configs.enableIsolateGeneration) {
         /// Recapture the image if the output format is incorrect or the output
         /// size is too large.
         if (kIsWeb || isOutputSizeTooLarge) {
@@ -429,10 +437,15 @@ class ContentRecorderController {
     required ui.Image image,
     required String id,
   }) async {
-    return ThreadRequest.fromConfigs(
+    return ThreadRequest(
       id: id,
       image: await convertFlutterUiToImage(image),
-      configs: _configs,
+      outputFormat: _configs.outputFormat,
+      singleFrame: _configs.singleFrame,
+      jpegQuality: _configs.jpegQuality,
+      jpegChroma: _configs.jpegChroma,
+      pngFilter: _configs.pngFilter,
+      pngLevel: _configs.pngLevel,
     );
   }
 }

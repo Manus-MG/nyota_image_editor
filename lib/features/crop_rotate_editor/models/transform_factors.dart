@@ -1,4 +1,6 @@
 // Flutter imports:
+import 'dart:math';
+
 import 'package:flutter/widgets.dart';
 
 import '/features/crop_rotate_editor/enums/crop_rotate_angle_side.dart';
@@ -188,6 +190,20 @@ class TransformConfigs {
     return factor == RotateAngleSide.left || factor == RotateAngleSide.right;
   }
 
+  /// Converts the angle (in radians) to the number of 90-degree turns
+  /// (quarter turns).
+  ///
+  /// The method assumes that a 90-degree turn is equivalent to π/2 radians.
+  /// It calculates the number of quarter turns by dividing the angle by π/2
+  /// and rounding the result to the nearest integer.
+  ///
+  /// Returns:
+  ///   An integer representing the number of 90-degree turns.
+  int angleToTurns() {
+    const double halfPi = 3.141592653589793 / 2; // 90 degrees
+    return (angle / halfPi).round();
+  }
+
   /// Converts the transformation configurations to a map.
   ///
   /// This method returns a map representation of the transformation settings,
@@ -217,6 +233,61 @@ class TransformConfigs {
         'dy': offset.dy,
       },
     };
+  }
+
+  /// Returns the top-left offset of the crop area in the original image
+  /// coordinates.
+  ///
+  /// [rawImageSize] is the size of the unscaled original image.
+  /// Takes into account user transformations like pan and zoom.
+  Offset getCropStartOffset(Size rawImageSize) {
+    double originalWidth = rawImageSize.width;
+    double originalHeight = rawImageSize.height;
+
+    double renderWidth = originalSize.width;
+    double renderHeight = originalSize.height;
+
+    Offset transformOffset = offset;
+
+    double horizontalPadding = (renderWidth - cropRect.width / scaleUser) / 2;
+    double verticalPadding = (renderHeight - cropRect.height / scaleUser) / 2;
+
+    /// Calculate crop offset in original coordinates
+    Offset cropOffset = Offset(
+      horizontalPadding - transformOffset.dx,
+      verticalPadding - transformOffset.dy,
+    );
+
+    /// Calculate scale factors for the offset
+    double offsetXScale = renderWidth / cropOffset.dx;
+    double offsetYScale = renderHeight / cropOffset.dy;
+
+    return Offset(
+      max(0, originalWidth / offsetXScale),
+      max(0, originalHeight / offsetYScale),
+    );
+  }
+
+  /// Returns the size of the crop area in the original image coordinates.
+  ///
+  /// [rawImageSize] is the size of the unscaled original image.
+  /// The result is scaled based on the user's zoom level.
+  Size getCropSize(Size rawImageSize) {
+    double originalWidth = rawImageSize.width;
+    double originalHeight = rawImageSize.height;
+
+    double renderWidth = originalSize.width;
+    double renderHeight = originalSize.height;
+
+    /// Calculate scale factors based on crop dimensions
+    double widthScale = renderWidth / cropRect.width;
+    double heightScale = renderHeight / cropRect.height;
+
+    return Size(
+          originalWidth / widthScale,
+          originalHeight / heightScale,
+        ) /
+        scaleUser;
   }
 
   @override

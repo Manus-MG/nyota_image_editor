@@ -1,6 +1,3 @@
-// Dart imports:
-// ignore_for_file: deprecated_member_use_from_same_package
-
 import 'dart:async';
 import 'dart:math';
 
@@ -22,12 +19,13 @@ import '/pro_image_editor.dart';
 import '/shared/services/content_recorder/widgets/content_recorder.dart';
 import '/shared/services/shader_manager.dart';
 import '/shared/styles/platform_text_styles.dart';
+import '/shared/utils/file_constructor_utils.dart';
 import '/shared/widgets/auto_image.dart';
 import '/shared/widgets/extended/extended_interactive_viewer.dart';
 import '/shared/widgets/layer/layer_stack.dart';
 import '/shared/widgets/slider_bottom_sheet.dart';
 import '/shared/widgets/transform/transformed_content_generator.dart';
-import '../filter_editor/widgets/filtered_image.dart';
+import '../filter_editor/widgets/filtered_widget.dart';
 import 'controllers/paint_controller.dart';
 import 'models/painted_model.dart';
 import 'services/paint_desktop_interaction_manager.dart';
@@ -53,14 +51,17 @@ class PaintEditor extends StatefulWidget
   ///
   /// The [key] parameter is used to provide a key for the widget.
   /// The [editorImage] parameter specifies the image to be edited.
+  /// The [videoController] parameter specifies the video to be edited.
   /// The [initConfigs] parameter specifies the initialization configurations
   /// for the editor.
   const PaintEditor._({
     super.key,
-    required this.editorImage,
     required this.initConfigs,
     this.paintOnly = false,
-  });
+    this.editorImage,
+    this.videoController,
+  }) : assert(editorImage != null || videoController != null,
+            'Either editorImage or videoController must be provided.');
 
   /// Constructs a `PaintEditor` widget with image data loaded from memory.
   factory PaintEditor.memory(
@@ -83,7 +84,7 @@ class PaintEditor extends StatefulWidget
   }) {
     return PaintEditor._(
       key: key,
-      editorImage: EditorImage(file: file),
+      editorImage: EditorImage(file: ensureFileInstance(file)),
       initConfigs: initConfigs,
     );
   }
@@ -139,42 +140,46 @@ class PaintEditor extends StatefulWidget
     String? assetPath,
     String? networkUrl,
     EditorImage? editorImage,
+    ProVideoController? videoController,
     required PaintEditorInitConfigs initConfigs,
   }) {
-    if (byteArray != null || editorImage?.byteArray != null) {
-      return PaintEditor.memory(
-        byteArray ?? editorImage!.byteArray!,
-        key: key,
-        initConfigs: initConfigs,
-      );
-    } else if (file != null || editorImage?.file != null) {
-      return PaintEditor.file(
-        file ?? editorImage!.file!,
-        key: key,
-        initConfigs: initConfigs,
-      );
-    } else if (networkUrl != null || editorImage?.networkUrl != null) {
-      return PaintEditor.network(
-        networkUrl ?? editorImage!.networkUrl!,
-        key: key,
-        initConfigs: initConfigs,
-      );
-    } else if (assetPath != null || editorImage?.assetPath != null) {
-      return PaintEditor.asset(
-        assetPath ?? editorImage!.assetPath!,
-        key: key,
-        initConfigs: initConfigs,
-      );
-    } else {
-      throw ArgumentError(
-          "Either 'byteArray', 'file', 'networkUrl' or 'assetPath' "
-          'must be provided.');
-    }
+    return PaintEditor._(
+      key: key,
+      editorImage: videoController != null
+          ? null
+          : editorImage ??
+              EditorImage(
+                byteArray: byteArray,
+                file: file == null ? null : ensureFileInstance(file),
+                networkUrl: networkUrl,
+                assetPath: assetPath,
+              ),
+      videoController: videoController,
+      initConfigs: initConfigs,
+    );
   }
+
+  /// 🚧 The Video Editor is under development and not ready for use.
+  ///
+  /// Constructs a `PaintEditor` widget with an video player.
+  factory PaintEditor.video(
+    ProVideoController videoController, {
+    Key? key,
+    required PaintEditorInitConfigs initConfigs,
+  }) {
+    return PaintEditor._(
+      key: key,
+      videoController: videoController,
+      initConfigs: initConfigs,
+    );
+  }
+
   @override
   final PaintEditorInitConfigs initConfigs;
   @override
-  final EditorImage editorImage;
+  final EditorImage? editorImage;
+  @override
+  final ProVideoController? videoController;
 
   /// A flag indicating whether only paint operations are allowed.
   final bool paintOnly;
@@ -241,43 +246,37 @@ class PaintEditorState extends State<PaintEditor>
   /// The list is dynamically generated based on the configuration settings in
   /// the [PaintEditorConfigs] object.
   List<PaintModeBottomBarItem> get paintModes => [
-        if (paintEditorConfigs.hasOptionFreeStyle ??
-            paintEditorConfigs.enableModeFreeStyle)
+        if (paintEditorConfigs.enableModeFreeStyle)
           PaintModeBottomBarItem(
             mode: PaintMode.freeStyle,
             icon: paintEditorConfigs.icons.freeStyle,
             label: i18n.paintEditor.freestyle,
           ),
-        if (paintEditorConfigs.hasOptionArrow ??
-            paintEditorConfigs.enableModeArrow)
+        if (paintEditorConfigs.enableModeArrow)
           PaintModeBottomBarItem(
             mode: PaintMode.arrow,
             icon: paintEditorConfigs.icons.arrow,
             label: i18n.paintEditor.arrow,
           ),
-        if (paintEditorConfigs.hasOptionLine ??
-            paintEditorConfigs.enableModeLine)
+        if (paintEditorConfigs.enableModeLine)
           PaintModeBottomBarItem(
             mode: PaintMode.line,
             icon: paintEditorConfigs.icons.line,
             label: i18n.paintEditor.line,
           ),
-        if (paintEditorConfigs.hasOptionRect ??
-            paintEditorConfigs.enableModeRect)
+        if (paintEditorConfigs.enableModeRect)
           PaintModeBottomBarItem(
             mode: PaintMode.rect,
             icon: paintEditorConfigs.icons.rectangle,
             label: i18n.paintEditor.rectangle,
           ),
-        if (paintEditorConfigs.hasOptionCircle ??
-            paintEditorConfigs.enableModeCircle)
+        if (paintEditorConfigs.enableModeCircle)
           PaintModeBottomBarItem(
             mode: PaintMode.circle,
             icon: paintEditorConfigs.icons.circle,
             label: i18n.paintEditor.circle,
           ),
-        if (paintEditorConfigs.hasOptionDashLine ??
-            paintEditorConfigs.enableModeDashLine)
+        if (paintEditorConfigs.enableModeDashLine)
           PaintModeBottomBarItem(
             mode: PaintMode.dashLine,
             icon: paintEditorConfigs.icons.dashLine,
@@ -296,8 +295,7 @@ class PaintEditorState extends State<PaintEditor>
             icon: paintEditorConfigs.icons.blur,
             label: i18n.paintEditor.blur,
           ),
-        if (paintEditorConfigs.hasOptionEraser ??
-            paintEditorConfigs.enableModeEraser)
+        if (paintEditorConfigs.enableModeEraser)
           PaintModeBottomBarItem(
             mode: PaintMode.eraser,
             icon: paintEditorConfigs.icons.eraser,
@@ -316,8 +314,7 @@ class PaintEditorState extends State<PaintEditor>
   void initState() {
     super.initState();
     paintCtrl = PaintController(
-      fill: paintEditorConfigs.initialFill ??
-          paintEditorConfigs.isInitiallyFilled,
+      fill: paintEditorConfigs.isInitiallyFilled,
       mode: paintEditorConfigs.initialPaintMode,
       strokeWidth: paintEditorConfigs.style.initialStrokeWidth,
       color: paintEditorConfigs.style.initialColor,
@@ -325,8 +322,7 @@ class PaintEditorState extends State<PaintEditor>
       strokeMultiplier: 1,
     );
 
-    _isFillMode =
-        paintEditorConfigs.initialFill ?? paintEditorConfigs.isInitiallyFilled;
+    _isFillMode = paintEditorConfigs.isInitiallyFilled;
 
     initStreamControllers();
 
@@ -505,20 +501,27 @@ class PaintEditorState extends State<PaintEditor>
   /// changes.
   void done() async {
     doneEditing(
-        editorImage: widget.editorImage,
-        onSetFakeHero: (bytes) {
-          if (initConfigs.enableFakeHero) {
-            setState(() {
-              _fakeHeroBytes = bytes;
-            });
-          }
-        },
-        onCloseWithValue: () {
-          if (!canUndo) return Navigator.pop(context);
-          Navigator.of(context).pop(
-            _exportPaintedItems(editorBodySize),
-          );
-        });
+      editorImage: widget.editorImage,
+      onSetFakeHero: (bytes) {
+        if (initConfigs.enableFakeHero) {
+          setState(() {
+            _fakeHeroBytes = bytes;
+          });
+        }
+      },
+      onCloseWithValue: () {
+        if (!canUndo) return Navigator.pop(context);
+        Navigator.of(context).pop(
+          _exportPaintedItems(editorBodySize),
+        );
+      },
+      blur: appliedBlurFactor,
+      colorFilters: [
+        ...appliedFilters,
+        ...appliedTuneAdjustments.map((item) => item.matrix),
+      ],
+      transform: initialTransformConfigs,
+    );
     paintEditorCallbacks?.handleDone();
   }
 
@@ -715,9 +718,10 @@ class PaintEditorState extends State<PaintEditor>
         return Theme(
           data: theme,
           child: Material(
-            color: initConfigs.convertToUint8List
-                ? paintEditorConfigs.style.background
-                : Colors.transparent,
+            color:
+                initConfigs.convertToUint8List && initConfigs.convertToUint8List
+                    ? paintEditorConfigs.style.background
+                    : Colors.transparent,
             textStyle: platformTextStyle(context, designMode),
             child: Stack(
               alignment: Alignment.center,
@@ -754,13 +758,11 @@ class PaintEditorState extends State<PaintEditor>
         maxScale: paintEditorConfigs.editorMaxScale,
         enableInteraction: paintMode == PaintMode.moveAndZoom,
         onInteractionStart: (details) {
-          _freeStyleHighPerformance = (paintEditorConfigs
-                      .freeStyleHighPerformanceMoving ??
-                  paintEditorConfigs.enableFreeStyleHighPerformanceMoving ??
-                  !isDesktop) ||
-              (paintEditorConfigs.freeStyleHighPerformanceScaling ??
-                  paintEditorConfigs.enableFreeStyleHighPerformanceScaling ??
-                  !isDesktop);
+          _freeStyleHighPerformance =
+              (paintEditorConfigs.enableFreeStyleHighPerformanceMoving ??
+                      !isDesktop) ||
+                  (paintEditorConfigs.enableFreeStyleHighPerformanceScaling ??
+                      !isDesktop);
 
           callbacks.paintEditorCallbacks?.onEditorZoomScaleStart?.call(details);
           setState(() {});
@@ -772,54 +774,51 @@ class PaintEditorState extends State<PaintEditor>
           callbacks.paintEditorCallbacks?.onEditorZoomScaleEnd?.call(details);
           setState(() {});
         },
-        child: ContentRecorder(
-          autoDestroyController: false,
-          controller: screenshotCtrl,
-          child: Stack(
-            alignment: Alignment.center,
-            fit: StackFit.expand,
-            children: [
-              if (!widget.paintOnly)
-                TransformedContentGenerator(
-                  configs: configs,
-                  transformConfigs:
-                      initialTransformConfigs ?? TransformConfigs.empty(),
-                  child: FilteredImage(
-                    width: getMinimumSize(mainImageSize, editorBodySize).width,
-                    height:
-                        getMinimumSize(mainImageSize, editorBodySize).height,
-                    configs: configs,
-                    image: editorImage,
-                    filters: appliedFilters,
-                    tuneAdjustments: appliedTuneAdjustments,
-                    blurFactor: appliedBlurFactor,
-                  ),
-                )
-              else
-                SizedBox(
-                  width: configs.imageGeneration.maxOutputSize.width,
-                  height: configs.imageGeneration.maxOutputSize.height,
-                ),
+        child: Stack(
+          alignment: Alignment.center,
+          fit: StackFit.expand,
+          children: [
+            if (initConfigs.convertToUint8List && isVideoEditor)
+              _buildBackground(),
+            ContentRecorder(
+              autoDestroyController: false,
+              controller: screenshotCtrl,
+              child: Stack(
+                alignment: Alignment.center,
+                fit: StackFit.expand,
+                children: [
+                  if (!widget.paintOnly)
+                    if (!initConfigs.convertToUint8List || !isVideoEditor)
+                      _buildBackground()
+                    else
+                      SizedBox(
+                        width: configs.imageGeneration.maxOutputSize.width,
+                        height: configs.imageGeneration.maxOutputSize.height,
+                      ),
 
-              /// Build layers
-              if (paintEditorConfigs.showLayers && layers != null)
-                LayerStack(
-                  configs: configs,
-                  layers: layers!,
-                  transformHelper: TransformHelper(
-                    mainBodySize: getMinimumSize(mainBodySize, editorBodySize),
-                    mainImageSize:
-                        getMinimumSize(mainImageSize, editorBodySize),
-                    editorBodySize: editorBodySize,
-                    transformConfigs: initialTransformConfigs,
-                  ),
-                ),
-              _buildPainter(),
-              if (paintEditorConfigs.widgets.bodyItemsRecorded != null)
-                ...paintEditorConfigs.widgets.bodyItemsRecorded!(
-                    this, rebuildController.stream),
-            ],
-          ),
+                  /// Build layers
+                  if (paintEditorConfigs.showLayers && layers != null)
+                    LayerStack(
+                      configs: configs,
+                      layers: layers!,
+                      transformHelper: TransformHelper(
+                        mainBodySize:
+                            getMinimumSize(mainBodySize, editorBodySize),
+                        mainImageSize:
+                            getMinimumSize(mainImageSize, editorBodySize),
+                        editorBodySize: editorBodySize,
+                        transformConfigs: initialTransformConfigs,
+                      ),
+                      overlayColor: paintEditorConfigs.style.background,
+                    ),
+                  _buildPainter(),
+                  if (paintEditorConfigs.widgets.bodyItemsRecorded != null)
+                    ...paintEditorConfigs.widgets.bodyItemsRecorded!(
+                        this, rebuildController.stream),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
 
@@ -833,6 +832,24 @@ class PaintEditorState extends State<PaintEditor>
         ...paintEditorConfigs.widgets.bodyItems!(
             this, rebuildController.stream),
     ];
+  }
+
+  Widget _buildBackground() {
+    return TransformedContentGenerator(
+      isVideoPlayer: videoController != null,
+      configs: configs,
+      transformConfigs: initialTransformConfigs ?? TransformConfigs.empty(),
+      child: FilteredWidget(
+        width: getMinimumSize(mainImageSize, editorBodySize).width,
+        height: getMinimumSize(mainImageSize, editorBodySize).height,
+        configs: configs,
+        image: editorImage,
+        videoPlayer: videoController?.videoPlayer,
+        filters: appliedFilters,
+        tuneAdjustments: appliedTuneAdjustments,
+        blurFactor: appliedBlurFactor,
+      ),
+    );
   }
 
   /// Builds the bottom navigation bar of the paint editor.

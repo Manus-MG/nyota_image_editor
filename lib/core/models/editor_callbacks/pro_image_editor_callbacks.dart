@@ -3,28 +3,31 @@ import 'crop_rotate_editor_callbacks.dart';
 import 'editor_callbacks_typedef.dart';
 import 'emoji_editor_callbacks.dart';
 import 'filter_editor_callbacks.dart';
-import 'main_editor_callbacks.dart';
+import 'main_editor/main_editor_callbacks.dart';
 import 'paint_editor_callbacks.dart';
 import 'sticker_editor_callbacks.dart';
 import 'text_editor_callbacks.dart';
 import 'tune_editor_callbacks.dart';
+import 'video_editor_callbacks.dart';
 
 export 'blur_editor_callbacks.dart';
 export 'crop_rotate_editor_callbacks.dart';
 export 'editor_callbacks_typedef.dart';
 export 'filter_editor_callbacks.dart';
-export 'main_editor_callbacks.dart';
+export 'main_editor/main_editor_callbacks.dart';
 export 'paint_editor_callbacks.dart';
 export 'sticker_editor_callbacks.dart';
 export 'text_editor_callbacks.dart';
 export 'tune_editor_callbacks.dart';
 export 'utils/sub_editors_name.dart';
+export 'video_editor_callbacks.dart';
 
 /// A class representing callbacks for the Image Editor.
 class ProImageEditorCallbacks {
   /// Creates a new instance of [ProImageEditorCallbacks].
   const ProImageEditorCallbacks({
     this.onImageEditingComplete,
+    this.onCompleteWithParameters,
     this.onThumbnailGenerated,
     this.onImageEditingStarted,
     this.onCloseEditor,
@@ -37,6 +40,7 @@ class ProImageEditorCallbacks {
     this.emojiEditorCallbacks,
     this.stickerEditorCallbacks,
     this.tuneEditorCallbacks,
+    this.videoEditorCallbacks,
   });
 
   /// A callback function that is triggered when the image generation is
@@ -51,6 +55,12 @@ class ProImageEditorCallbacks {
   ///
   /// <img src="https://github.com/hm21/pro_image_editor/blob/stable/assets/schema_capture_image.jpeg?raw=true" alt="Schema" height="500px"/>
   final ImageEditingCompleteCallback? onImageEditingComplete;
+
+  /// A callback that runs when export completes with full parameters.
+  ///
+  /// Provides access to all transformation, filter, and timing values used
+  /// during the export process.
+  final CompleteWidthParametersCallback? onCompleteWithParameters;
 
   /// A callback function that is called when the editing is complete and the
   /// thumbnail image is generated, along with capturing the original image as
@@ -106,4 +116,7 @@ class ProImageEditorCallbacks {
 
   /// Callbacks from the tune editor.
   final TuneEditorCallbacks? tuneEditorCallbacks;
+
+  /// Callbacks from the video editor.
+  final VideoEditorCallbacks? videoEditorCallbacks;
 }

@@ -11,7 +11,7 @@ import '/shared/widgets/animated/fade_in_up.dart';
 import '../types/filter_matrix.dart';
 import '../utils/filter_generator/filter_model.dart';
 import '../utils/filter_generator/filter_presets.dart';
-import 'filtered_image.dart';
+import 'filtered_widget.dart';
 
 /// A widget for displaying a list of filter editor items, allowing users
 /// to select and apply filters to an image.
@@ -19,7 +19,8 @@ class FilterEditorItemList extends StatefulWidget {
   /// Constructor for creating an instance of FilterEditorItemList.
   const FilterEditorItemList({
     super.key,
-    required this.editorImage,
+    this.editorImage,
+    this.image,
     this.activeFilters,
     this.activeTuneAdjustments = const [],
     this.blurFactor,
@@ -33,11 +34,15 @@ class FilterEditorItemList extends StatefulWidget {
     this.borderRadius,
     this.listHeight = 104.0,
     this.previewImageSize = const Size(64, 64),
-  });
+  }) : assert(editorImage != null || image != null,
+            'Either editorImage or image must be provided.');
 
   /// The EditorImage class represents an image with multiple sources,
   /// including bytes, file, network URL, and asset path.
-  final EditorImage editorImage;
+  final EditorImage? editorImage;
+
+  /// A custom background image which can be used instant of the editorImage
+  final Widget? image;
 
   /// The image editor configs.
   final ProImageEditorConfigs configs;
@@ -100,7 +105,9 @@ class _FilterEditorItemListState extends State<FilterEditorItemList> {
   /// A list of `ColorFilterGenerator` objects that define the image filters
   /// available in the editor.
   List<FilterModel> get _filters =>
-      widget.configs.filterEditor.filterList ?? presetFiltersList;
+      _filterConfigs.filterList ?? presetFiltersList;
+
+  FilterEditorConfigs get _filterConfigs => widget.configs.filterEditor;
 
   @override
   void initState() {
@@ -135,11 +142,11 @@ class _FilterEditorItemListState extends State<FilterEditorItemList> {
             constraints:
                 BoxConstraints(minWidth: MediaQuery.sizeOf(context).width),
             child: Padding(
-              padding: widget.configs.filterEditor.style.filterListMargin,
+              padding: _filterConfigs.style.filterListMargin,
               child: Wrap(
                 crossAxisAlignment: WrapCrossAlignment.end,
                 alignment: WrapAlignment.spaceAround,
-                spacing: widget.configs.filterEditor.style.filterListSpacing,
+                spacing: _filterConfigs.style.filterListSpacing,
                 children: <Widget>[
                   for (int i = 0; i < _filters.length; i++)
                     buildFilterButton(
@@ -166,8 +173,8 @@ class _FilterEditorItemListState extends State<FilterEditorItemList> {
         widget.selectedFilter.hashCode == filter.filters.hashCode ||
             (widget.selectedFilter.isEmpty && filter.filters.isEmpty);
 
-    if (widget.configs.filterEditor.widgets.filterButton != null) {
-      return widget.configs.filterEditor.widgets.filterButton!.call(
+    if (_filterConfigs.widgets.filterButton != null) {
+      return _filterConfigs.widgets.filterButton!.call(
         FilterModel(
           name: widget.configs.i18n.filterEditor.filters
               .getFilterI18n(filter.name),
@@ -185,8 +192,8 @@ class _FilterEditorItemListState extends State<FilterEditorItemList> {
     }
 
     return FadeInUp(
-      duration: widget.configs.filterEditor.fadeInUpDuration,
-      delay: widget.configs.filterEditor.fadeInUpStaggerDelayDuration * index,
+      duration: _filterConfigs.fadeInUpDuration,
+      delay: _filterConfigs.fadeInUpStaggerDelayDuration * index,
       child: GestureDetector(
         key: ValueKey('Filter-${filter.name}-$index'),
         onTap: () {
@@ -221,7 +228,7 @@ class _FilterEditorItemListState extends State<FilterEditorItemList> {
                   color: isSelected
                       ? widget
                           .configs.filterEditor.style.previewSelectedTextColor
-                      : widget.configs.filterEditor.style.previewTextColor,
+                      : _filterConfigs.style.previewTextColor,
                 ),
               ),
             ),
@@ -279,8 +286,9 @@ class _FilterEditorItemListState extends State<FilterEditorItemList> {
               scale: scale,
               child: Transform.translate(
                 offset: offset,
-                child: FilteredImage(
+                child: FilteredWidget(
                   image: widget.editorImage,
+                  videoPlayer: widget.image,
                   fit: transformConfigs.isNotEmpty
                       ? BoxFit.contain
                       : BoxFit.cover,

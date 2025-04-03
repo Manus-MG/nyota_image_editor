@@ -1,9 +1,9 @@
-// ignore_for_file: deprecated_member_use_from_same_package
-// TODO: Remove deprecated values
-
 // Dart imports:
+// ignore_for_file: deprecated_member_use_from_same_package
+
 import 'dart:math';
 import 'dart:ui';
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -13,6 +13,7 @@ import 'package:flutter/services.dart';
 import '/core/mixins/converted_callbacks.dart';
 import '/core/mixins/converted_configs.dart';
 import '/core/mixins/standalone_editor.dart';
+import '/core/models/complete_parameters.dart';
 import '/core/models/transform_helper.dart';
 import '/core/platform/io/io_helper.dart';
 import '/features/crop_rotate_editor/widgets/crop_editor_appbar.dart';
@@ -24,15 +25,15 @@ import '/pro_image_editor.dart';
 import '/shared/mixins/extended_loop.dart';
 import '/shared/services/content_recorder/widgets/record_invisible_widget.dart';
 import '/shared/services/layer_transform_generator.dart';
-import '/shared/utils/debounce.dart';
+import '/shared/utils/file_constructor_utils.dart';
 import '/shared/widgets/extended/extended_custom_paint.dart';
-import '/shared/widgets/extended/extended_mouse_cursor.dart';
 import '/shared/widgets/extended/extended_transform_scale.dart';
 import '/shared/widgets/extended/extended_transform_translate.dart';
+import '/shared/widgets/extended/mouse_region/extended_rebuild_mouse_region.dart';
 import '/shared/widgets/layer/layer_stack.dart';
 import '/shared/widgets/screen_resize_detector.dart';
 import '/shared/widgets/transform/transformed_content_generator.dart';
-import '../filter_editor/widgets/filtered_image.dart';
+import '../filter_editor/widgets/filtered_widget.dart';
 import 'enums/crop_area_part.dart';
 import 'enums/crop_rotate_angle_side.dart';
 import 'mixins/crop_area_history.dart';
@@ -65,9 +66,11 @@ class CropRotateEditor extends StatefulWidget
   /// for the editor.
   const CropRotateEditor._({
     super.key,
-    required this.editorImage,
     required this.initConfigs,
-  });
+    this.editorImage,
+    this.videoController,
+  }) : assert(editorImage != null || videoController != null,
+            'Either editorImage or videoController must be provided.');
 
   /// Constructs a `CropRotateEditor` widget with image data loaded from memory.
   factory CropRotateEditor.memory(
@@ -90,7 +93,7 @@ class CropRotateEditor extends StatefulWidget
   }) {
     return CropRotateEditor._(
       key: key,
-      editorImage: EditorImage(file: file),
+      editorImage: EditorImage(file: ensureFileInstance(file)),
       initConfigs: initConfigs,
     );
   }
@@ -133,42 +136,46 @@ class CropRotateEditor extends StatefulWidget
     String? assetPath,
     String? networkUrl,
     EditorImage? editorImage,
+    ProVideoController? videoController,
     required CropRotateEditorInitConfigs initConfigs,
   }) {
-    if (byteArray != null || editorImage?.byteArray != null) {
-      return CropRotateEditor.memory(
-        byteArray ?? editorImage!.byteArray!,
-        key: key,
-        initConfigs: initConfigs,
-      );
-    } else if (file != null || editorImage?.file != null) {
-      return CropRotateEditor.file(
-        file ?? editorImage!.file!,
-        key: key,
-        initConfigs: initConfigs,
-      );
-    } else if (networkUrl != null || editorImage?.networkUrl != null) {
-      return CropRotateEditor.network(
-        networkUrl ?? editorImage!.networkUrl!,
-        key: key,
-        initConfigs: initConfigs,
-      );
-    } else if (assetPath != null || editorImage?.assetPath != null) {
-      return CropRotateEditor.asset(
-        assetPath ?? editorImage!.assetPath!,
-        key: key,
-        initConfigs: initConfigs,
-      );
-    } else {
-      throw ArgumentError(
-          "Either 'byteArray', 'file', 'networkUrl' or 'assetPath' "
-          'must be provided.');
-    }
+    return CropRotateEditor._(
+      key: key,
+      editorImage: videoController != null
+          ? null
+          : editorImage ??
+              EditorImage(
+                byteArray: byteArray,
+                file: file == null ? null : ensureFileInstance(file),
+                networkUrl: networkUrl,
+                assetPath: assetPath,
+              ),
+      videoController: videoController,
+      initConfigs: initConfigs,
+    );
   }
+
+  /// 🚧 The Video Editor is under development and not ready for use.
+  ///
+  /// Constructs a `CropRotateEditor` widget with an video player.
+  factory CropRotateEditor.video(
+    ProVideoController videoController, {
+    Key? key,
+    required CropRotateEditorInitConfigs initConfigs,
+  }) {
+    return CropRotateEditor._(
+      key: key,
+      videoController: videoController,
+      initConfigs: initConfigs,
+    );
+  }
+
   @override
   final CropRotateEditorInitConfigs initConfigs;
   @override
-  final EditorImage editorImage;
+  final EditorImage? editorImage;
+  @override
+  final ProVideoController? videoController;
 
   @override
   State<CropRotateEditor> createState() => CropRotateEditorState();
@@ -194,7 +201,7 @@ class CropRotateEditorState extends State<CropRotateEditor>
   /// Initialized to `Offset.zero`.
   Offset _editorScreenOffsetHelper = Offset.zero;
 
-  final _mouseCursorsKey = GlobalKey<ExtendedMouseRegionState>();
+  final _mouseCursorsKey = GlobalKey<ExtendedRebuildMouseRegionState>();
 
   /// A key used to access the state of the CropRotateGestureDetector widget.
   final _gestureKey = GlobalKey<CropRotateGestureDetectorState>();
@@ -361,8 +368,7 @@ class CropRotateEditorState extends State<CropRotateEditor>
             ),
             fadeInOpacity: _painterOpacity,
             style: cropRotateEditorConfigs.style,
-            drawCircle: cropRotateEditorConfigs.roundCropper ??
-                cropRotateEditorConfigs.enableRoundCropper,
+            drawCircle: cropRotateEditorConfigs.enableRoundCropper,
           )
         : null;
   }
@@ -370,10 +376,13 @@ class CropRotateEditorState extends State<CropRotateEditor>
   /// Returns the current mouse cursor style.
   MouseCursor get _cursor => _mouseCursor;
 
+  bool _isVideoPlayerReady = true;
+
   @override
   void initState() {
     super.initState();
 
+    _initializeVideoEditor();
     // Initialize debounce
     _onScaleEndDebounce = Debounce(const Duration(milliseconds: 10));
     _onScaleAllowUpdateDebounce = Debounce(const Duration(milliseconds: 1));
@@ -536,12 +545,53 @@ class CropRotateEditorState extends State<CropRotateEditor>
     setState(() {});
   }
 
-  void _decodeImage() async {
+  void _initializeVideoEditor() async {
+    if (!isVideoEditor || !initConfigs.convertToUint8List) return;
+
+    _isVideoPlayerReady = false;
+    Future<Uint8List> createTransparentImage(
+        double width, double height) async {
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, width, height));
+      final paint = Paint()..color = const ui.Color.fromARGB(0, 0, 0, 0);
+      canvas.drawRect(Rect.fromLTWH(0.0, 0.0, width, height), paint);
+
+      final picture = recorder.endRecording();
+      final img = await picture.toImage(width.toInt(), height.toInt());
+      final pngBytes = await img.toByteData(format: ui.ImageByteFormat.png);
+
+      return pngBytes!.buffer.asUint8List();
+    }
+
+    widget.videoController!.initialize(
+      configsFunction: () => configs.videoEditor,
+      callbacksFunction: () =>
+          callbacks.videoEditorCallbacks ?? VideoEditorCallbacks(),
+    );
+
+    final resolution = widget.videoController!.initialResolution;
+
+    videoBackgroundImage = EditorImage(
+      byteArray: await createTransparentImage(
+        resolution.width,
+        resolution.height,
+      ),
+    );
+    _isVideoPlayerReady = true;
+
+    if (!mounted) return;
+
+    setState(() {});
+    await _decodeImage();
+  }
+
+  Future<void> _decodeImage() async {
+    if (!_isVideoPlayerReady && isVideoEditor) return;
     _imageSizeIsDecoded = false;
     _imageNeedDecode = false;
 
     var decodedImage =
-        await decodeImageFromList(await editorImage.safeByteArray(context));
+        await decodeImageFromList(await editorImage!.safeByteArray(context));
 
     if (!mounted) return;
     var w = decodedImage.width;
@@ -550,10 +600,12 @@ class CropRotateEditorState extends State<CropRotateEditor>
     var widthRatio = w.toDouble() / editorBodySize.width;
     var heightRatio = h.toDouble() / editorBodySize.height;
     var pixelRatio = max(heightRatio, widthRatio);
+    var renderedSize = Size(w / pixelRatio, h / pixelRatio);
 
     imageInfos = ImageInfos(
       rawSize: Size(w.toDouble(), h.toDouble()),
-      renderedSize: Size(w / pixelRatio, h / pixelRatio),
+      renderedSize: renderedSize,
+      originalRenderedSize: renderedSize,
       cropRectSize: cropRect.size,
       isRotated: _rotated90deg,
       pixelRatio: pixelRatio,
@@ -680,6 +732,7 @@ class CropRotateEditorState extends State<CropRotateEditor>
     }
     _interactionActive = true;
     initConfigs.onImageEditingStarted?.call();
+    initConfigs.callbacks.onImageEditingStarted?.call();
 
     /// If the user set a custom initAspectRatio we need to enforce add
     /// a history even there was no changes
@@ -711,8 +764,7 @@ class CropRotateEditorState extends State<CropRotateEditor>
       _updateAllStates();
 
       /// Read the image information in the case the user require them
-      if ((cropRotateEditorConfigs.provideImageInfos ??
-              cropRotateEditorConfigs.enableProvideImageInfos) &&
+      if (cropRotateEditorConfigs.enableProvideImageInfos &&
           imageInfos == null) {
         await setImageInfos(activeHistory: activeHistory);
       }
@@ -767,12 +819,57 @@ class CropRotateEditorState extends State<CropRotateEditor>
         debugPrint('Failed to capture the final image.');
       }
 
-      await initConfigs.onImageEditingComplete
-          ?.call(bytes ?? Uint8List.fromList([]));
+      if (!mounted) return;
+
+      var imageBytes = bytes ?? Uint8List.fromList([]);
+
+      await initConfigs.onImageEditingComplete?.call(imageBytes);
+      await initConfigs.callbacks.onImageEditingComplete?.call(imageBytes);
+
+      /// Return complete parameters if requested
+      if (initConfigs.callbacks.onCompleteWithParameters != null) {
+        final isTransformed = transformC.isNotEmpty;
+
+        Size originalImageSize;
+        if (isVideoEditor) {
+          originalImageSize = videoController!.initialResolution;
+        } else {
+          var decodedImage = await decodeImageFromList(imageBytes);
+          originalImageSize = Size(
+            decodedImage.width.toDouble(),
+            decodedImage.height.toDouble(),
+          );
+        }
+        Size? outputSize = transformC.getCropSize(originalImageSize);
+        Offset? outputOffset = transformC.getCropStartOffset(originalImageSize);
+
+        await callbacks.onCompleteWithParameters?.call(
+          CompleteParameters(
+            blur: appliedBlurFactor,
+            colorFilters: [
+              ...appliedFilters,
+              ...appliedTuneAdjustments.map((item) => item.matrix),
+            ],
+            cropWidth: isTransformed ? outputSize.width.round() : null,
+            cropHeight: isTransformed ? outputSize.height.round() : null,
+            cropX: isTransformed ? outputOffset.dx.round() : null,
+            cropY: isTransformed ? outputOffset.dy.round() : null,
+            flipX:
+                transformC.is90DegRotated ? transformC.flipY : transformC.flipX,
+            flipY:
+                transformC.is90DegRotated ? transformC.flipX : transformC.flipY,
+            rotateTurns: transformC.angleToTurns(),
+            startTime: null,
+            endTime: null,
+            image: imageBytes,
+          ),
+        );
+      }
 
       LoadingDialog.instance.hide();
 
       initConfigs.onCloseEditor?.call();
+      initConfigs.callbacks.onCloseEditor?.call();
     }
     cropRotateEditorCallbacks?.handleDone();
     _interactionActive = false;
@@ -1079,8 +1176,7 @@ class CropRotateEditorState extends State<CropRotateEditor>
     double dx = offset.dx;
     double dy = offset.dy;
 
-    if (cropRotateEditorConfigs.roundCropper ??
-        cropRotateEditorConfigs.enableRoundCropper) {
+    if (cropRotateEditorConfigs.enableRoundCropper) {
       double halfWidth = cropRect.width / 2;
       double halfHeight = cropRect.height / 2;
 
@@ -1329,8 +1425,7 @@ class CropRotateEditorState extends State<CropRotateEditor>
             ) +
             _startingTranslate * _startingPinchScale;
 
-        bool roundCropper = (cropRotateEditorConfigs.roundCropper ??
-            cropRotateEditorConfigs.enableRoundCropper);
+        bool roundCropper = cropRotateEditorConfigs.enableRoundCropper;
 
         double imgW = _renderedImgConstraints.maxWidth;
         double imgH = _renderedImgConstraints.maxHeight;
@@ -1552,10 +1647,7 @@ class CropRotateEditorState extends State<CropRotateEditor>
         translate +=
             Offset(details.focalPointDelta.dx, details.focalPointDelta.dy) /
                 scaleFactor *
-                ((cropRotateEditorConfigs.reverseDragDirection ??
-                        cropRotateEditorConfigs.invertDragDirection)
-                    ? -1
-                    : 1);
+                (cropRotateEditorConfigs.invertDragDirection ? -1 : 1);
         _setOffsetLimits();
         cropRotateEditorCallbacks?.handleMove();
 
@@ -1796,10 +1888,7 @@ class CropRotateEditorState extends State<CropRotateEditor>
           (event.scrollDelta.dy / 50).abs().clamp(0.5, 2);
 
       double deltaY = event.scrollDelta.dy *
-          ((cropRotateEditorConfigs.reverseMouseScroll ??
-                  cropRotateEditorConfigs.invertMouseScroll)
-              ? -1
-              : 1);
+          (cropRotateEditorConfigs.invertMouseScroll ? -1 : 1);
 
       double startZoom = userScaleFactor;
       double newZoom = userScaleFactor;
@@ -2052,14 +2141,10 @@ class CropRotateEditorState extends State<CropRotateEditor>
           .call(this, rebuildController.stream);
     }
 
-    return (cropRotateEditorConfigs.canRotate ??
-                cropRotateEditorConfigs.showRotateButton) ||
-            (cropRotateEditorConfigs.canFlip ??
-                cropRotateEditorConfigs.showFlipButton) ||
-            (cropRotateEditorConfigs.canChangeAspectRatio ??
-                cropRotateEditorConfigs.showAspectRatioButton) ||
-            (cropRotateEditorConfigs.canReset ??
-                cropRotateEditorConfigs.showResetButton)
+    return cropRotateEditorConfigs.showRotateButton ||
+            cropRotateEditorConfigs.showFlipButton ||
+            cropRotateEditorConfigs.showAspectRatioButton ||
+            cropRotateEditorConfigs.showResetButton
         ? CropEditorBottombar(
             bottomBarScrollCtrl: _bottomBarScrollCtrl,
             i18n: i18n.cropRotateEditor,
@@ -2154,7 +2239,7 @@ class CropRotateEditorState extends State<CropRotateEditor>
   }
 
   Widget _buildMouseCursor({required Widget child}) {
-    return ExtendedMouseRegion(
+    return ExtendedRebuildMouseRegion(
       key: _mouseCursorsKey,
       initCursor: _cursor,
       child: child,
@@ -2291,7 +2376,7 @@ class CropRotateEditorState extends State<CropRotateEditor>
             fit: StackFit.expand,
             alignment: Alignment.center,
             children: [
-              FilteredImage(
+              FilteredWidget(
                 filters: appliedFilters,
                 tuneAdjustments: appliedTuneAdjustments,
                 blurFactor: appliedBlurFactor,
@@ -2299,10 +2384,10 @@ class CropRotateEditorState extends State<CropRotateEditor>
                 width: _imgWidth,
                 height: _imgHeight,
                 image: editorImage,
+                videoPlayer: videoController?.videoPlayer,
               ),
               if (cropRotateEditorConfigs.showLayers &&
-                  (cropRotateEditorConfigs.transformLayers ??
-                      cropRotateEditorConfigs.enableTransformLayers) &&
+                  cropRotateEditorConfigs.enableTransformLayers &&
                   layers != null)
                 ClipRRect(
                   clipBehavior: Clip.hardEdge,
@@ -2317,6 +2402,7 @@ class CropRotateEditorState extends State<CropRotateEditor>
                     configs: configs,
                     layers: _rawLayers,
                     clipBehavior: Clip.none,
+                    overlayColor: cropRotateEditorConfigs.style.background,
                   ),
                 ),
             ],
@@ -2339,13 +2425,15 @@ class CropRotateEditorState extends State<CropRotateEditor>
               createRectTween: (begin, end) =>
                   RectTween(begin: begin, end: end),
               child: TransformedContentGenerator(
+                isVideoPlayer: videoController != null,
                 transformConfigs: _fakeHeroTransformConfigs,
                 configs: configs,
-                child: FilteredImage(
+                child: FilteredWidget(
                   width: _mainImageSize.width,
                   height: _mainImageSize.height,
                   configs: configs,
                   image: editorImage,
+                  videoPlayer: videoController?.videoPlayer,
                   filters: appliedFilters,
                   tuneAdjustments: appliedTuneAdjustments,
                   blurFactor: appliedBlurFactor,
@@ -2363,6 +2451,7 @@ class CropRotateEditorState extends State<CropRotateEditor>
                 configs: configs,
                 layers: _layers,
                 clipBehavior: Clip.none,
+                overlayColor: cropRotateEditorConfigs.style.background,
               ),
           ],
         );
@@ -2380,13 +2469,17 @@ class CropRotateEditorState extends State<CropRotateEditor>
       width: w,
       height: h,
       child: TransformedContentGenerator(
+        isVideoPlayer: videoController != null,
         transformConfigs: transformC,
         configs: configs,
-        child: FilteredImage(
+        child: FilteredWidget(
           width: w,
           height: h,
           configs: configs,
           image: editorImage,
+          videoPlayer: isVideoEditor && initConfigs.convertToUint8List
+              ? const SizedBox.shrink()
+              : videoController?.videoPlayer,
           filters: appliedFilters,
           tuneAdjustments: appliedTuneAdjustments,
           blurFactor: appliedBlurFactor,

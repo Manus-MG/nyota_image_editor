@@ -1,5 +1,6 @@
-import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
+
+import '/plugins/emoji_picker_flutter/emoji_picker_flutter.dart';
 import '../services/emoji_state_manager.dart';
 
 /// Represents the bottom bar for the emoji editor.
@@ -8,8 +9,8 @@ class EmojiEditorBottomBar extends StatelessWidget {
   const EmojiEditorBottomBar(
     this.config,
     this.tabController,
-    this.categoryEmojis,
-    this.closeSkinToneOverlay, {
+    this.closeSkinToneOverlay,
+    this.categoryEmojis, {
     super.key,
   });
 
@@ -19,11 +20,11 @@ class EmojiEditorBottomBar extends StatelessWidget {
   /// The tab controller for navigating between emoji categories.
   final TabController tabController;
 
-  /// The list of emoji categories.
-  final List<CategoryEmoji> categoryEmojis;
-
   /// Callback function for closing the skin tone overlay.
   final VoidCallback closeSkinToneOverlay;
+
+  /// List of the category emojis
+  final List<CategoryEmoji> categoryEmojis;
 
   @override
   Widget build(BuildContext context) {

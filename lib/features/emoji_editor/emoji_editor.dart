@@ -1,13 +1,13 @@
 // Dart imports:
 import 'dart:math';
 
-import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
-import 'package:emoji_picker_flutter/locales/default_emoji_set_locale.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 
 import '/core/mixins/converted_configs.dart';
 import '/core/mixins/editor_configs_mixin.dart';
+import '/plugins/emoji_picker_flutter/emoji_picker_flutter.dart';
+import '/plugins/emoji_picker_flutter/locales/default_emoji_set_locale.dart';
 import '/pro_image_editor.dart';
 import './widgets/emoji_editor_category_view.dart';
 import 'widgets/emoji_editor_full_screen_search.dart';
@@ -92,11 +92,20 @@ class EmojiEditorState extends State<EmojiEditor>
     });
   }
 
+  List<CategoryEmoji> _getDefaultEmojiSet(Locale locale) {
+    return emojiSetEnglish;
+  }
+
   Config _getEditorConfig(BoxConstraints constraints) {
+    var emojiI18n = i18n.emojiEditor;
+
     return Config(
       height: double.infinity,
-      locale: emojiEditorConfigs.locale,
-      emojiSet: emojiEditorConfigs.emojiSet,
+      locale: emojiI18n.locale ?? Localizations.localeOf(context),
+      emojiSet: emojiEditorConfigs.emojiSet ??
+          (i18n.emojiEditor.enableSearchAutoI18n
+              ? getDefaultEmojiLocale
+              : _getDefaultEmojiSet),
       checkPlatformCompatibility: emojiEditorConfigs.checkPlatformCompatibility,
       emojiTextStyle: _textStyle,
       emojiViewConfig: emojiEditorConfigs.style.emojiViewConfig ??
@@ -188,12 +197,13 @@ class EmojiEditorState extends State<EmojiEditor>
   Widget _buildEmojiPicker() {
     return LayoutBuilder(builder: (context, constraints) {
       if (_showExternalSearchPage) {
+        var configs = _getEditorConfig(constraints);
+
         return EmojiEditorFullScreenSearchView(
           key: _emojiSearchPageKey,
-          config: _getEditorConfig(constraints),
+          config: configs,
           state: EmojiViewState(
-            (emojiEditorConfigs.emojiSet ??
-                getDefaultEmojiLocale)(emojiEditorConfigs.locale),
+            configs.emojiSet!(configs.locale),
             (category, emoji) {
               Navigator.pop(
                 context,

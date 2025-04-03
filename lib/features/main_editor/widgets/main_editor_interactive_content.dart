@@ -1,6 +1,3 @@
-// ignore_for_file: deprecated_member_use_from_same_package
-// TODO: Remove deprecated values
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -10,8 +7,11 @@ import '/core/models/editor_configs/pro_image_editor_configs.dart';
 import '/features/crop_rotate_editor/widgets/crop_layer_painter.dart';
 import '/features/main_editor/controllers/main_editor_controllers.dart';
 import '/features/main_editor/services/layer_interaction_manager.dart';
+import '/shared/controllers/video_controller.dart';
 import '/shared/services/content_recorder/widgets/content_recorder.dart';
 import '/shared/widgets/extended/extended_interactive_viewer.dart';
+import '/shared/widgets/video/video_editor_configurable.dart';
+import '/shared/widgets/video/video_editor_controls_widget.dart';
 import '../main_editor.dart';
 import '../services/sizes_manager.dart';
 import '../services/state_manager.dart';
@@ -24,10 +24,11 @@ class MainEditorInteractiveContent extends StatelessWidget {
   /// builders, managers, configurations, and callbacks.
   ///
   /// - [buildImage]: A builder function to create the image widget.
+  /// - [buildVideo]: A builder function to create the video widget.
   /// - [buildLayers]: A builder function to create the layer widgets.
   /// - [buildHelperLines]: A builder function to create the helper lines
   ///   widget.
-  /// - [buildRemoveIcon]: A builder function to create the remove icon widget.
+  /// - [buildRemoveArea]: A builder function to create the remove area widget.
   /// - [stateManager]: Manages the state of the editor.
   /// - [sizesManager]: Handles size-related settings and adjustments.
   /// - [state]: Represents the current state of the editor.
@@ -43,9 +44,10 @@ class MainEditorInteractiveContent extends StatelessWidget {
   const MainEditorInteractiveContent({
     super.key,
     required this.buildImage,
+    required this.buildVideo,
     required this.buildLayers,
     required this.buildHelperLines,
-    required this.buildRemoveIcon,
+    required this.buildRemoveArea,
     required this.callbacks,
     required this.sizesManager,
     required this.configs,
@@ -57,10 +59,15 @@ class MainEditorInteractiveContent extends StatelessWidget {
     required this.stateManager,
     required this.interactiveViewerKey,
     required this.state,
+    required this.isVideoEditor,
+    required this.videoController,
   });
 
   /// A builder function to create the image widget.
   final Widget Function() buildImage;
+
+  /// A builder function to create the video widget.
+  final Widget Function() buildVideo;
 
   /// A builder function to create the layer widgets.
   final Widget Function() buildLayers;
@@ -69,7 +76,7 @@ class MainEditorInteractiveContent extends StatelessWidget {
   final Widget Function() buildHelperLines;
 
   /// A builder function to create the remove icon widget.
-  final Widget Function() buildRemoveIcon;
+  final Widget Function() buildRemoveArea;
 
   /// Manages the state of the editor.
   final StateManager stateManager;
@@ -104,14 +111,22 @@ class MainEditorInteractiveContent extends StatelessWidget {
   /// Indicates whether the final image is being processed.
   final bool processFinalImage;
 
+  /// Indicates whether the image or video editor is active.
+  final bool isVideoEditor;
+
+  /// Manages video-related functionalities within the main editor.
+  final ProVideoController? videoController;
+
   @override
   Widget build(BuildContext context) {
+    bool isLayerSelected = selectedLayerIndex >= 0;
+
     return Center(
       child: Stack(
         children: [
           MainEditorFontPreloader(emojiEditorConfigs: configs.emojiEditor),
           Padding(
-            padding: selectedLayerIndex >= 0 &&
+            padding: isLayerSelected &&
                     configs.layerInteraction.hideToolbarOnInteraction
                 ? EdgeInsets.only(
                     top: sizesManager.appBarHeight,
@@ -122,14 +137,25 @@ class MainEditorInteractiveContent extends StatelessWidget {
           ),
 
           /// Build crop area overlay
-          if (configs.imageGeneration.captureOnlyBackgroundImageArea ??
-              configs.imageGeneration.cropToImageBounds)
+          if (configs.imageGeneration.cropToImageBounds)
             _buildCropAreaOverlay(),
+
+          /// Build video controls
+          if (isVideoEditor)
+            AnimatedSwitcher(
+              duration: configs.layerInteraction.videoControlsSwitchDuration,
+              child: isLayerSelected
+                  ? const SizedBox.shrink()
+                  : VideoEditorConfigurable(
+                      controller: videoController!,
+                      child: const VideoEditorControlsWidget(),
+                    ),
+            ),
 
           /// Build helper content
           if (!processFinalImage) ...[
             buildHelperLines(),
-            if (selectedLayerIndex >= 0) buildRemoveIcon(),
+            if (selectedLayerIndex >= 0) buildRemoveArea(),
           ],
 
           /// Build custom body items
@@ -155,11 +181,8 @@ class MainEditorInteractiveContent extends StatelessWidget {
       onInteractionStart: (details) {
         callbacks.mainEditorCallbacks?.onEditorZoomScaleStart?.call(details);
         layerInteractionManager.freeStyleHighPerformanceEditorZoom =
-            (paintConfigs.freeStyleHighPerformanceMoving ??
-                    paintConfigs.enableFreeStyleHighPerformanceMoving ??
-                    !isDesktop) ||
-                (paintConfigs.freeStyleHighPerformanceScaling ??
-                    paintConfigs.enableFreeStyleHighPerformanceScaling ??
+            (paintConfigs.enableFreeStyleHighPerformanceMoving ?? !isDesktop) ||
+                (paintConfigs.enableFreeStyleHighPerformanceScaling ??
                     !isDesktop);
 
         controllers.uiLayerCtrl.add(null);
@@ -174,7 +197,16 @@ class MainEditorInteractiveContent extends StatelessWidget {
         controllers.uiLayerCtrl.add(null);
         controllers.cropLayerPainterCtrl.add(null);
       },
-      child: _buildContentRecorder(),
+      child: isVideoEditor
+          ? Stack(
+              alignment: Alignment.center,
+              fit: StackFit.expand,
+              children: [
+                buildVideo(),
+                _buildContentRecorder(),
+              ],
+            )
+          : _buildContentRecorder(),
     );
   }
 
@@ -204,9 +236,7 @@ class MainEditorInteractiveContent extends StatelessWidget {
         stream: controllers.cropLayerPainterCtrl.stream,
         builder: (context, snapshot) {
           return CustomPaint(
-            foregroundPainter: configs
-                        .imageGeneration.captureOnlyBackgroundImageArea ??
-                    configs.imageGeneration.cropToImageBounds
+            foregroundPainter: configs.imageGeneration.cropToImageBounds
                 ? CropLayerPainter(
                     opacity:
                         configs.mainEditor.style.outsideCaptureAreaLayerOpacity,
@@ -215,8 +245,7 @@ class MainEditorInteractiveContent extends StatelessWidget {
                         ? stateManager
                             .transformConfigs.cropRect.size.aspectRatio
                         : sizesManager.decodedImageSize.aspectRatio,
-                    isRoundCropper: configs.cropRotateEditor.roundCropper ??
-                        configs.cropRotateEditor.enableRoundCropper,
+                    isRoundCropper: configs.cropRotateEditor.enableRoundCropper,
                     is90DegRotated:
                         stateManager.transformConfigs.is90DegRotated,
                     interactiveViewerScale:

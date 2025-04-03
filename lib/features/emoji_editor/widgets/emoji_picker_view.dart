@@ -1,11 +1,11 @@
 import 'dart:math';
 
-import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 
 import '/core/models/i18n/i18n_emoji_editor.dart';
 import '/core/models/styles/emoji_editor_style.dart';
 import '/features/emoji_editor/services/emoji_state_manager.dart';
+import '/plugins/emoji_picker_flutter/emoji_picker_flutter.dart';
 import '/shared/utils/platform_info.dart';
 import './emoji_editor_category_view.dart';
 import 'emoji_cell_extended.dart';
@@ -258,7 +258,7 @@ class _DefaultEmojiPickerViewState extends State<ProEmojiPickerView>
   }
 
   List<CategoryEmoji> get _categories {
-    return widget.state.categoryEmoji.toList();
+    return widget.state.categoryEmoji;
   }
 
   @override
@@ -420,6 +420,7 @@ class _DefaultEmojiPickerViewState extends State<ProEmojiPickerView>
     if (!widget.config.bottomActionBarConfig.enabled) {
       return const SizedBox.shrink();
     }
+
     return SizedBox(
       key: _searchBarKey,
       child: widget.config.bottomActionBarConfig.customBottomActionBar != null
