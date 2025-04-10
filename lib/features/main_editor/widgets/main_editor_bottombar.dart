@@ -101,16 +101,18 @@ class MainEditorBottombar extends StatelessWidget {
             controller: controllers.bottomBarScrollCtrl,
             scrollbarOrientation: ScrollbarOrientation.top,
             thickness: isDesktop ? null : 0,
-            child: Material( // Wrap with Material to apply shape
+            child: Material(
+              // Wrap with Material to apply shape
               color: configs.mainEditor.style.bottomBarBackground,
-              shape: const RoundedRectangleBorder( // Apply rounded corners
+              shape: const RoundedRectangleBorder(
+                // Apply rounded corners
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(14.0),
                   topRight: Radius.circular(14.0),
                 ),
               ),
               child: SizedBox(
-                height: kBottomNavigationBarHeight+10,
+                height: kBottomNavigationBarHeight + 10,
                 child: Center(
                   child: SingleChildScrollView(
                     controller: controllers.bottomBarScrollCtrl,
@@ -143,16 +145,29 @@ class MainEditorBottombar extends StatelessWidget {
     );
   }
 
-
   /// Builds a list of editor action buttons dynamically
   List<Widget> _buildEditorButtons() {
     return [
-      if (configs.paintEditor.enabled)
+      if (configs.filterEditor.enabled)
         _buildActionButton(
-          key: const ValueKey('open-paint-editor-btn'),
-          label: configs.i18n.paintEditor.bottomNavigationBarText,
-          icon: configs.paintEditor.icons.bottomNavBar,
-          onPressed: openPaintEditor,
+          key: const ValueKey('open-filter-editor-btn'),
+          label: configs.i18n.filterEditor.bottomNavigationBarText,
+          icon: configs.filterEditor.icons.bottomNavBar,
+          onPressed: openFilterEditor,
+        ),
+      if (configs.tuneEditor.enabled)
+        _buildActionButton(
+          key: const ValueKey('open-tune-editor-btn'),
+          label: configs.i18n.tuneEditor.bottomNavigationBarText,
+          icon: configs.tuneEditor.icons.bottomNavBar,
+          onPressed: openTuneEditor,
+        ),
+      if (configs.stickerEditor.enabled)
+        _buildActionButton(
+          key: const ValueKey('open-sticker-editor-btn'),
+          label: configs.i18n.stickerEditor.bottomNavigationBarText,
+          icon: configs.stickerEditor.icons.bottomNavBar,
+          onPressed: openStickerEditor,
         ),
       if (configs.textEditor.enabled)
         _buildActionButton(
@@ -168,19 +183,12 @@ class MainEditorBottombar extends StatelessWidget {
           icon: configs.cropRotateEditor.icons.bottomNavBar,
           onPressed: openCropRotateEditor,
         ),
-      if (configs.tuneEditor.enabled)
+      if (configs.paintEditor.enabled)
         _buildActionButton(
-          key: const ValueKey('open-tune-editor-btn'),
-          label: configs.i18n.tuneEditor.bottomNavigationBarText,
-          icon: configs.tuneEditor.icons.bottomNavBar,
-          onPressed: openTuneEditor,
-        ),
-      if (configs.filterEditor.enabled)
-        _buildActionButton(
-          key: const ValueKey('open-filter-editor-btn'),
-          label: configs.i18n.filterEditor.bottomNavigationBarText,
-          icon: configs.filterEditor.icons.bottomNavBar,
-          onPressed: openFilterEditor,
+          key: const ValueKey('open-paint-editor-btn'),
+          label: configs.i18n.paintEditor.bottomNavigationBarText,
+          icon: configs.paintEditor.icons.bottomNavBar,
+          onPressed: openPaintEditor,
         ),
       if (configs.blurEditor.enabled)
         _buildActionButton(
@@ -195,13 +203,6 @@ class MainEditorBottombar extends StatelessWidget {
           label: configs.i18n.emojiEditor.bottomNavigationBarText,
           icon: configs.emojiEditor.icons.bottomNavBar,
           onPressed: openEmojiEditor,
-        ),
-      if (configs.stickerEditor.enabled)
-        _buildActionButton(
-          key: const ValueKey('open-sticker-editor-btn'),
-          label: configs.i18n.stickerEditor.bottomNavigationBarText,
-          icon: configs.stickerEditor.icons.bottomNavBar,
-          onPressed: openStickerEditor,
         ),
     ];
   }
