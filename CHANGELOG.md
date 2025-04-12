@@ -1,5 +1,10 @@
 # Changelog
 
+## 9.4.0
+- **FEAT**(jpeg-encoder): Add `jpegBackgroundColor` option to `ImageGenerationConfigs` to allow customization of JPEG background color.
+- **FIX**(crop_editor): Add missing copyWith parameters to ensure proper cloning of configuration states.
+- **FIX**(PaintEditor.drawing): Ensure `cropToImageBounds` is `false` to prevent unintended cropping behavior.
+
 ## 9.3.0
 - **FEAT**: Video editing has now been fully implemented in the image editor across all platforms except the web, for which support is not planned. For more details and a list of limitations, please refer to [that discussion](https://github.com/hm21/pro_image_editor/discussions/406) thread.
 
