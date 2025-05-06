@@ -71,32 +71,55 @@ class TextEditorColorPicker extends StatelessWidget {
           const SizedBox.shrink();
     }
 
-    return Align(
-      alignment: Alignment.topRight,
-      child: Container(
-        margin: null,
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: BarColorPicker(
-          configs: configs,
-          length: min(
-            350,
-            MediaQuery.sizeOf(context).height -
-                MediaQuery.viewInsetsOf(context).bottom -
-                kToolbarHeight -
-                kBottomNavigationBarHeight -
-                10 * 2 -
-                MediaQuery.paddingOf(context).top,
+    return Column(
+      children: [
+        Align(
+          alignment: Alignment.topRight,
+          child: Container(
+            margin: null,
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: BarColorPicker(
+              configs: configs,
+              length: min(
+                350,
+                MediaQuery.sizeOf(context).height -
+                    MediaQuery.viewInsetsOf(context).bottom -
+                    kToolbarHeight -
+                    kBottomNavigationBarHeight -
+                    10 * 2 -
+                    MediaQuery.paddingOf(context).top,
+              ),
+              onPositionChange: onPositionChange,
+              initPosition: colorPosition,
+              initialColor: primaryColor,
+              horizontal: false,
+              thumbColor: Colors.white,
+              cornerRadius: 10,
+              pickMode: PickMode.color,
+              colorListener: (int value) => onUpdateColor(Color(value)),
+            ),
           ),
-          onPositionChange: onPositionChange,
-          initPosition: colorPosition,
-          initialColor: primaryColor,
-          horizontal: false,
-          thumbColor: Colors.white,
-          cornerRadius: 10,
-          pickMode: PickMode.color,
-          colorListener: (int value) => onUpdateColor(Color(value)),
         ),
-      ),
+        Align(
+          alignment: Alignment.topLeft,
+          child: Container(
+            margin: null,
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Slider(
+              value: state.fontScale,
+              min: state.textEditorConfigs.minFontScale,
+              max: state.textEditorConfigs.maxFontScale,
+              divisions: (state.textEditorConfigs.maxFontScale -
+                      state.textEditorConfigs.minFontScale) ~/
+                  0.1,
+              onChanged: (value) {
+                state.fontScale = value;
+                rebuildController.add(null);
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
