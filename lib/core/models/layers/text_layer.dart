@@ -43,6 +43,7 @@ class TextLayer extends Layer {
     super.interaction,
     super.isDeleted,
     super.meta,
+    super.boxConstraints,
   });
 
   /// Factory constructor for creating a TextLayer instance from a Layer
@@ -103,6 +104,9 @@ class TextLayer extends Layer {
     double? wordSpacing = tryParseDouble(map[keyConverter('wordSpacing')]);
     double? height = tryParseDouble(map[keyConverter('height')]);
     double? letterSpacing = tryParseDouble(map[keyConverter('letterSpacing')]);
+    double? fontScale = tryParseDouble(map[keyConverter('fontScale')]) ?? 1.0;
+    double? colorPickerPosition =
+        tryParseDouble(map[keyConverter('colorPickerPosition')]) ?? 0.0;
     int? fontWeight = tryParseInt(map[keyConverter('fontWeight')]);
     String? fontStyle = map[keyConverter('fontStyle')] as String?;
     String? decoration = map[keyConverter('decoration')] as String?;
@@ -120,7 +124,7 @@ class TextLayer extends Layer {
       isDeleted: layer.isDeleted,
       meta: layer.meta,
       text: map[keyConverter('text')] ?? '-',
-      fontScale: map[keyConverter('fontScale')] ?? 1.0,
+      fontScale: fontScale,
       textStyle: fontFamily != null ||
               wordSpacing != null ||
               height != null ||
@@ -148,7 +152,7 @@ class TextLayer extends Layer {
           (element) => element.name == map[keyConverter!('colorMode')]),
       color: Color(map[keyConverter('color')]),
       background: Color(map[keyConverter('background')]),
-      colorPickerPosition: map[keyConverter('colorPickerPosition')] ?? 0,
+      colorPickerPosition: colorPickerPosition,
       align: TextAlign.values
           .firstWhere((element) => element.name == map[keyConverter!('align')]),
       customSecondaryColor: map[keyConverter('customSecondaryColor')] ?? false,

@@ -1,10 +1,9 @@
 // Flutter imports:
 import 'package:flutter/widgets.dart';
 
-// Project imports:
+import '../../../enums/sub_editors_name.dart';
 import '../../layers/layer.dart';
 import '../standalone_editor_callbacks.dart';
-import '../utils/sub_editors_name.dart';
 import 'helper_lines/helper_lines_callbacks.dart';
 
 export 'helper_lines/helper_lines_callbacks.dart';
@@ -31,6 +30,8 @@ class MainEditorCallbacks extends StandaloneEditorCallbacks {
     this.onEditorZoomScaleEnd,
     this.onEscapeButton,
     this.helperLines = const HelperLinesCallbacks(),
+    this.onSelectedLayerChanged,
+    this.onEditorZoomMatrix4Change,
     super.onInit,
     super.onAfterViewInit,
     super.onUpdateUI,
@@ -102,19 +103,19 @@ class MainEditorCallbacks extends StandaloneEditorCallbacks {
   ///
   /// The [ScaleStartDetails] parameter provides information about the scaling
   /// gesture.
-  final Function(ScaleStartDetails)? onScaleStart;
+  final Function(ScaleStartDetails value)? onScaleStart;
 
   /// A callback function that is triggered when a scaling gesture is updated.
   ///
   /// The [ScaleUpdateDetails] parameter provides information about the scaling
   /// gesture.
-  final Function(ScaleUpdateDetails)? onScaleUpdate;
+  final Function(ScaleUpdateDetails value)? onScaleUpdate;
 
   /// A callback function that is triggered when a scaling gesture ends.
   ///
   /// The [ScaleEndDetails] parameter provides information about the scaling
   /// gesture.
-  final Function(ScaleEndDetails)? onScaleEnd;
+  final Function(ScaleEndDetails value)? onScaleEnd;
 
   /// Called when the user ends a pan or scale gesture on the widget.
   ///
@@ -182,6 +183,9 @@ class MainEditorCallbacks extends StandaloneEditorCallbacks {
   ///  * [onEditorZoomScaleEnd], which handles the end of the same interaction.
   final GestureScaleUpdateCallback? onEditorZoomScaleUpdate;
 
+  /// Called when the editor zoom matrix changes.
+  final Function(Matrix4 value)? onEditorZoomMatrix4Change;
+
   /// {@template flutter.widgets.PopScope.onPopInvoked}
   /// Called after a route pop was handled.
   /// {@endtemplate}
@@ -203,6 +207,15 @@ class MainEditorCallbacks extends StandaloneEditorCallbacks {
   /// An instance of [HelperLinesCallbacks] that manages callback functions
   /// for handling helper line hit events.
   final HelperLinesCallbacks helperLines;
+
+  /// A callback that is called when the selected layer of layer interaction
+  /// manager changes.
+  ///
+  /// The callback is called with the id of the newly selected layer. If no
+  /// layer is selected, the callback is called with blank.
+  ///
+  /// This callback is not called when [LayerInteractionSelectable] is disabled.
+  final ValueChanged<String>? onSelectedLayerChanged;
 
   /// Handles the addition of a layer.
   ///
@@ -291,5 +304,69 @@ class MainEditorCallbacks extends StandaloneEditorCallbacks {
   void handleScaleEnd(ScaleEndDetails details) {
     onScaleEnd?.call(details);
     handleUpdateUI();
+  }
+
+  /// Creates a copy with modified editor callbacks.
+  MainEditorCallbacks copyWith({
+    Function(Layer)? onAddLayer,
+    Function(Layer)? onUpdateLayer,
+    Function(Layer)? onRemoveLayer,
+    Function(SubEditor)? onOpenSubEditor,
+    Function(SubEditor)? onEndCloseSubEditor,
+    Function(SubEditor)? onStartCloseSubEditor,
+    Function()? onTap,
+    Function()? onDoubleTap,
+    Function()? onLongPress,
+    Function()? onEscapeButton,
+    Function(ScaleStartDetails)? onScaleStart,
+    Function(ScaleUpdateDetails)? onScaleUpdate,
+    Function(ScaleEndDetails)? onScaleEnd,
+    GestureScaleEndCallback? onEditorZoomScaleEnd,
+    GestureScaleStartCallback? onEditorZoomScaleStart,
+    GestureScaleUpdateCallback? onEditorZoomScaleUpdate,
+    Function(Matrix4 value)? onEditorZoomMatrix4Change,
+    PopInvokedWithResultCallback<dynamic>? onPopInvoked,
+    HelperLinesCallbacks? helperLines,
+    ValueChanged<String>? onSelectedLayerChanged,
+    Function()? onInit,
+    Function()? onAfterViewInit,
+    Function()? onUpdateUI,
+    Function()? onDone,
+    Function()? onRedo,
+    Function()? onUndo,
+  }) {
+    return MainEditorCallbacks(
+      onAddLayer: onAddLayer ?? this.onAddLayer,
+      onUpdateLayer: onUpdateLayer ?? this.onUpdateLayer,
+      onRemoveLayer: onRemoveLayer ?? this.onRemoveLayer,
+      onOpenSubEditor: onOpenSubEditor ?? this.onOpenSubEditor,
+      onEndCloseSubEditor: onEndCloseSubEditor ?? this.onEndCloseSubEditor,
+      onStartCloseSubEditor:
+          onStartCloseSubEditor ?? this.onStartCloseSubEditor,
+      onTap: onTap ?? this.onTap,
+      onDoubleTap: onDoubleTap ?? this.onDoubleTap,
+      onLongPress: onLongPress ?? this.onLongPress,
+      onEscapeButton: onEscapeButton ?? this.onEscapeButton,
+      onScaleStart: onScaleStart ?? this.onScaleStart,
+      onScaleUpdate: onScaleUpdate ?? this.onScaleUpdate,
+      onScaleEnd: onScaleEnd ?? this.onScaleEnd,
+      onEditorZoomScaleEnd: onEditorZoomScaleEnd ?? this.onEditorZoomScaleEnd,
+      onEditorZoomScaleStart:
+          onEditorZoomScaleStart ?? this.onEditorZoomScaleStart,
+      onEditorZoomScaleUpdate:
+          onEditorZoomScaleUpdate ?? this.onEditorZoomScaleUpdate,
+      onEditorZoomMatrix4Change:
+          onEditorZoomMatrix4Change ?? this.onEditorZoomMatrix4Change,
+      onPopInvoked: onPopInvoked ?? this.onPopInvoked,
+      helperLines: helperLines ?? this.helperLines,
+      onSelectedLayerChanged:
+          onSelectedLayerChanged ?? this.onSelectedLayerChanged,
+      onInit: onInit ?? this.onInit,
+      onAfterViewInit: onAfterViewInit ?? this.onAfterViewInit,
+      onUpdateUI: onUpdateUI ?? this.onUpdateUI,
+      onDone: onDone ?? this.onDone,
+      onRedo: onRedo ?? this.onRedo,
+      onUndo: onUndo ?? this.onUndo,
+    );
   }
 }

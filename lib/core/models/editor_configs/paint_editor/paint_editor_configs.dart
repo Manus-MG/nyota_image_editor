@@ -5,6 +5,7 @@ import '../../custom_widgets/paint_editor_widgets.dart';
 import '../../icons/paint_editor_icons.dart';
 import '../../styles/paint_editor_style.dart';
 import '../utils/editor_safe_area.dart';
+import '../utils/zoom_configs.dart';
 import 'censor_configs.dart';
 
 export '../../custom_widgets/paint_editor_widgets.dart';
@@ -35,22 +36,28 @@ export 'censor_configs.dart';
 ///   initialPaintMode: PaintMode.freeStyle,
 /// );
 /// ```
-class PaintEditorConfigs {
+class PaintEditorConfigs extends ZoomConfigs {
   /// Creates an instance of PaintEditorConfigs with optional settings.
   ///
   /// By default, the editor is enabled, and most drawing tools are enabled.
   /// Other properties are set to reasonable defaults.
   const PaintEditorConfigs({
     this.enabled = true,
-    this.enableZoom = false,
-    this.editorMinScale = 1.0,
-    this.editorMaxScale = 5.0,
+    super.enableZoom,
+    super.editorMinScale,
+    super.editorMaxScale,
+    super.enableDoubleTapZoom,
+    super.doubleTapZoomFactor,
+    super.doubleTapZoomDuration,
+    super.doubleTapZoomCurve,
+    super.boundaryMargin,
     this.enableModeFreeStyle = true,
     this.enableModeArrow = true,
     this.enableModeLine = true,
     this.enableModeRect = true,
     this.enableModeCircle = true,
     this.enableModeDashLine = true,
+    this.enableModePolygon = true,
     this.enableModeBlur = true,
     this.enableModePixelate = true,
     this.enableModeEraser = true,
@@ -59,7 +66,8 @@ class PaintEditorConfigs {
     this.showOpacityAdjustmentButton = true,
     this.isInitiallyFilled = false,
     this.showLayers = true,
-    this.boundaryMargin = EdgeInsets.zero,
+    this.enableShareZoomMatrix = true,
+    this.polygonConnectionThreshold = 20,
     this.minScale = double.negativeInfinity,
     this.maxScale = double.infinity,
     this.enableFreeStyleHighPerformanceScaling,
@@ -79,16 +87,6 @@ class PaintEditorConfigs {
   /// Indicates whether the paint editor is enabled.
   final bool enabled;
 
-  /// Indicates whether the editor supports zoom functionality.
-  ///
-  /// When set to `true`, the editor allows users to zoom in and out, providing
-  /// enhanced accessibility and usability, especially on smaller screens or for
-  /// users with visual impairments. If set to `false`, the zoom functionality
-  /// is disabled, and the editor's content remains at a fixed scale.
-  ///
-  /// Default value is `false`.
-  final bool enableZoom;
-
   /// Indicating whether the free-style drawing option is enabled.
   final bool enableModeFreeStyle;
 
@@ -106,6 +104,9 @@ class PaintEditorConfigs {
 
   /// Indicating whether the dash line drawing option is enabled.
   final bool enableModeDashLine;
+
+  /// Indicating whether the polygon drawing option is enabled.
+  final bool enableModePolygon;
 
   /// Indicating whether the blur drawing option is enabled.
   final bool enableModeBlur;
@@ -134,6 +135,9 @@ class PaintEditorConfigs {
 
   /// Show the layers from the main-editor.
   final bool showLayers;
+
+  /// Shares the zoom matrix between the main and paint editor.
+  final bool enableShareZoomMatrix;
 
   /// Enables high-performance scaling for free-style drawing when set to
   /// `true`.
@@ -164,26 +168,6 @@ class PaintEditorConfigs {
   /// Indicates the initial paint mode.
   final PaintMode initialPaintMode;
 
-  /// The minimum scale factor for the editor.
-  ///
-  /// This value determines the lowest level of zoom that can be applied to the
-  /// editor content. It only has an effect when [enableZoom] is set to
-  /// `true`.
-  /// If [enableZoom] is `false`, this value is ignored.
-  ///
-  /// Default value is 1.0.
-  final double editorMinScale;
-
-  /// The maximum scale factor for the editor.
-  ///
-  /// This value determines the highest level of zoom that can be applied to the
-  /// editor content. It only has an effect when [enableZoom] is set to
-  /// `true`.
-  /// If [enableZoom] is `false`, this value is ignored.
-  ///
-  /// Default value is 5.0.
-  final double editorMaxScale;
-
   /// Configuration settings for the censor tool in the paint editor.
   ///
   /// This property holds an instance of [CensorConfigs] which contains
@@ -191,29 +175,15 @@ class PaintEditorConfigs {
   /// the paint editor.
   final CensorConfigs censorConfigs;
 
-  /// Zoom boundary
-  ///
-  /// A margin for the visible boundaries of the child.
-  ///
-  /// Any transformation that results in the viewport being able to view
-  /// outside of the boundaries will be stopped at the boundary.
-  /// The boundaries do not rotate with the rest of the scene, so they are
-  /// always aligned with the viewport.
-  ///
-  /// To produce no boundaries at all, pass infinite [EdgeInsets], such as
-  /// EdgeInsets.all(double.infinity).
-  ///
-  /// No edge can be NaN.
-  ///
-  /// Defaults to [EdgeInsets.zero], which results in boundaries that are the
-  /// exact same size and position as the [child].
-  final EdgeInsets boundaryMargin;
-
   /// The minimum scale factor from the layer.
   final double minScale;
 
   /// The maximum scale factor from the layer.
   final double maxScale;
+
+  /// The maximum distance between the first and last point to be auto
+  /// connected when drawing polygons.
+  final double polygonConnectionThreshold;
 
   /// Defines the safe area configuration for the editor.
   final EditorSafeArea safeArea;
@@ -235,46 +205,52 @@ class PaintEditorConfigs {
   /// others unchanged.
   PaintEditorConfigs copyWith({
     bool? enabled,
-    bool? showToggleFillButton,
-    bool? showLineWidthAdjustmentButton,
-    bool? showOpacityAdjustmentButton,
-    bool? isInitiallyFilled,
-    bool? enableFreeStyleHighPerformanceScaling,
-    bool? enableFreeStyleHighPerformanceMoving,
-    bool? enableFreeStyleHighPerformanceHero,
-    bool? showLayers,
-    bool? enableZoom,
     bool? enableModeFreeStyle,
     bool? enableModeArrow,
     bool? enableModeLine,
     bool? enableModeRect,
     bool? enableModeCircle,
     bool? enableModeDashLine,
+    bool? enableModePolygon,
     bool? enableModeBlur,
     bool? enableModePixelate,
     bool? enableModeEraser,
+    bool? showToggleFillButton,
+    bool? showLineWidthAdjustmentButton,
+    bool? showOpacityAdjustmentButton,
+    bool? isInitiallyFilled,
+    bool? showLayers,
+    bool? enableShareZoomMatrix,
+    bool? enableFreeStyleHighPerformanceScaling,
+    bool? enableFreeStyleHighPerformanceMoving,
+    bool? enableFreeStyleHighPerformanceHero,
     PaintMode? initialPaintMode,
-    double? editorMinScale,
-    double? editorMaxScale,
+    CensorConfigs? censorConfigs,
     double? minScale,
     double? maxScale,
-    CensorConfigs? censorConfigs,
     EditorSafeArea? safeArea,
-    EdgeInsets? boundaryMargin,
     PaintEditorStyle? style,
     PaintEditorIcons? icons,
     PaintEditorWidgets? widgets,
+    bool? enableZoom,
+    double? editorMinScale,
+    double? editorMaxScale,
+    double? polygonConnectionThreshold,
+    EdgeInsets? boundaryMargin,
+    bool? enableDoubleTapZoom,
+    double? doubleTapZoomFactor,
+    Duration? doubleTapZoomDuration,
+    Curve? doubleTapZoomCurve,
   }) {
     return PaintEditorConfigs(
-      safeArea: safeArea ?? this.safeArea,
       enabled: enabled ?? this.enabled,
-      enableZoom: enableZoom ?? this.enableZoom,
       enableModeFreeStyle: enableModeFreeStyle ?? this.enableModeFreeStyle,
       enableModeArrow: enableModeArrow ?? this.enableModeArrow,
       enableModeLine: enableModeLine ?? this.enableModeLine,
       enableModeRect: enableModeRect ?? this.enableModeRect,
       enableModeCircle: enableModeCircle ?? this.enableModeCircle,
       enableModeDashLine: enableModeDashLine ?? this.enableModeDashLine,
+      enableModePolygon: enableModePolygon ?? this.enableModePolygon,
       enableModeBlur: enableModeBlur ?? this.enableModeBlur,
       enableModePixelate: enableModePixelate ?? this.enableModePixelate,
       enableModeEraser: enableModeEraser ?? this.enableModeEraser,
@@ -283,8 +259,10 @@ class PaintEditorConfigs {
           showLineWidthAdjustmentButton ?? this.showLineWidthAdjustmentButton,
       showOpacityAdjustmentButton:
           showOpacityAdjustmentButton ?? this.showOpacityAdjustmentButton,
-      showLayers: showLayers ?? this.showLayers,
       isInitiallyFilled: isInitiallyFilled ?? this.isInitiallyFilled,
+      showLayers: showLayers ?? this.showLayers,
+      enableShareZoomMatrix:
+          enableShareZoomMatrix ?? this.enableShareZoomMatrix,
       enableFreeStyleHighPerformanceScaling:
           enableFreeStyleHighPerformanceScaling ??
               this.enableFreeStyleHighPerformanceScaling,
@@ -294,15 +272,24 @@ class PaintEditorConfigs {
       enableFreeStyleHighPerformanceHero: enableFreeStyleHighPerformanceHero ??
           this.enableFreeStyleHighPerformanceHero,
       initialPaintMode: initialPaintMode ?? this.initialPaintMode,
-      editorMinScale: editorMinScale ?? this.editorMinScale,
       censorConfigs: censorConfigs ?? this.censorConfigs,
-      editorMaxScale: editorMaxScale ?? this.editorMaxScale,
-      boundaryMargin: boundaryMargin ?? this.boundaryMargin,
       minScale: minScale ?? this.minScale,
       maxScale: maxScale ?? this.maxScale,
+      safeArea: safeArea ?? this.safeArea,
       style: style ?? this.style,
       icons: icons ?? this.icons,
       widgets: widgets ?? this.widgets,
+      enableZoom: enableZoom ?? this.enableZoom,
+      editorMinScale: editorMinScale ?? this.editorMinScale,
+      editorMaxScale: editorMaxScale ?? this.editorMaxScale,
+      polygonConnectionThreshold:
+          polygonConnectionThreshold ?? this.polygonConnectionThreshold,
+      enableDoubleTapZoom: enableDoubleTapZoom ?? this.enableDoubleTapZoom,
+      doubleTapZoomFactor: doubleTapZoomFactor ?? this.doubleTapZoomFactor,
+      doubleTapZoomDuration:
+          doubleTapZoomDuration ?? this.doubleTapZoomDuration,
+      doubleTapZoomCurve: doubleTapZoomCurve ?? this.doubleTapZoomCurve,
+      boundaryMargin: boundaryMargin ?? this.boundaryMargin,
     );
   }
 }

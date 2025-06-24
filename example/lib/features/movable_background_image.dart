@@ -147,8 +147,8 @@ class _MovableBackgroundImageExampleState
         constraints: BoxConstraints(
           minWidth: min(MediaQuery.sizeOf(context).width, 360),
         ),
-        builder: (context) {
-          return Material(
+        builder: (context) => SafeArea(
+          child: Material(
             color: Colors.transparent,
             child: SingleChildScrollView(
               child: Padding(
@@ -178,8 +178,8 @@ class _MovableBackgroundImageExampleState
                 ),
               ),
             ),
-          );
-        },
+          ),
+        ),
       );
     }
   }
@@ -219,8 +219,8 @@ class _MovableBackgroundImageExampleState
   void _openReorderSheet(ProImageEditorState editor) {
     showModalBottomSheet(
       context: context,
-      builder: (context) {
-        return ReorderLayerSheet(
+      builder: (context) => SafeArea(
+        child: ReorderLayerSheet(
           layers: editor.activeLayers,
           onReorder: (oldIndex, newIndex) {
             editor.moveLayerListPosition(
@@ -229,8 +229,8 @@ class _MovableBackgroundImageExampleState
             );
             Navigator.pop(context);
           },
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -253,8 +253,10 @@ class _MovableBackgroundImageExampleState
           callbacks: ProImageEditorCallbacks(
             onImageEditingStarted: onImageEditingStarted,
             onImageEditingComplete: onImageEditingComplete,
-            onCloseEditor: () =>
-                onCloseEditor(enablePop: !isDesktopMode(context)),
+            onCloseEditor: (editorMode) => onCloseEditor(
+              editorMode: editorMode,
+              enablePop: !isDesktopMode(context),
+            ),
             mainEditorCallbacks: MainEditorCallbacks(
               helperLines: HelperLinesCallbacks(onLineHit: vibrateLineHit),
               onAfterViewInit: () {
@@ -386,7 +388,7 @@ class _MovableBackgroundImageExampleState
                       ? _editorSize.height
                       : _editorSize.width) /
                   _initScale,
-              buildStickers: (setLayer, scrollController) {
+              builder: (setLayer, scrollController) {
                 // Optionally your code to pick layers
                 return const SizedBox();
               },

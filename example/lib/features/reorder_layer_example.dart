@@ -53,7 +53,10 @@ class _ReorderLayerExampleState extends State<ReorderLayerExample>
       callbacks: ProImageEditorCallbacks(
         onImageEditingStarted: onImageEditingStarted,
         onImageEditingComplete: onImageEditingComplete,
-        onCloseEditor: () => onCloseEditor(enablePop: !isDesktopMode(context)),
+        onCloseEditor: (editorMode) => onCloseEditor(
+          editorMode: editorMode,
+          enablePop: !isDesktopMode(context),
+        ),
         mainEditorCallbacks: MainEditorCallbacks(
           helperLines: HelperLinesCallbacks(onLineHit: vibrateLineHit),
         ),
@@ -85,8 +88,8 @@ class _ReorderLayerExampleState extends State<ReorderLayerExample>
                                   onPressed: () {
                                     showModalBottomSheet(
                                       context: context,
-                                      builder: (context) {
-                                        return ReorderLayerSheet(
+                                      builder: (context) => SafeArea(
+                                        child: ReorderLayerSheet(
                                           layers: editor.activeLayers,
                                           onReorder: (oldIndex, newIndex) {
                                             editor.moveLayerListPosition(
@@ -95,8 +98,8 @@ class _ReorderLayerExampleState extends State<ReorderLayerExample>
                                             );
                                             Navigator.pop(context);
                                           },
-                                        );
-                                      },
+                                        ),
+                                      ),
                                     );
                                   },
                                   icon: const Icon(

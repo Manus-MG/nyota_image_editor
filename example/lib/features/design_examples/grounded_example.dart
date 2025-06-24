@@ -47,7 +47,7 @@ class _GroundedDesignExampleState extends State<GroundedDesignExample>
         callbacks: ProImageEditorCallbacks(
           onImageEditingStarted: onImageEditingStarted,
           onImageEditingComplete: onImageEditingComplete,
-          onCloseEditor: onCloseEditor,
+          onCloseEditor: (editorMode) => onCloseEditor(editorMode: editorMode),
           mainEditorCallbacks: MainEditorCallbacks(
             helperLines: HelperLinesCallbacks(onLineHit: vibrateLineHit),
             onStartCloseSubEditor: (value) {
@@ -357,7 +357,7 @@ class _GroundedDesignExampleState extends State<GroundedDesignExample>
           ),
           stickerEditor: StickerEditorConfigs(
             enabled: true,
-            buildStickers: (setLayer, scrollController) => DemoBuildStickers(
+            builder: (setLayer, scrollController) => DemoBuildStickers(
                 categoryColor: const Color(0xFF161616),
                 setLayer: setLayer,
                 scrollController: scrollController),

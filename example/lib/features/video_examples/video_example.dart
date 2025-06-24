@@ -1,15 +1,15 @@
 // Flutter imports:
-import 'dart:io';
 
 import 'package:example/shared/widgets/paragraph_info_widget.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:pro_image_editor/core/platform/io/io_helper.dart';
 
 import '/core/mixin/example_helper.dart';
-import '/features/video_examples/pages/chewie_player_example.dart';
-import '/features/video_examples/pages/flick_video_player_example.dart';
-import '/features/video_examples/pages/video_player_example.dart';
+import 'pages/chewie_player_example.dart';
+import 'pages/flick_video_player_example.dart';
 import 'pages/video_media_kit_example.dart';
+import 'pages/video_player_example.dart';
 
 /// The video example widget
 class VideoExample extends StatefulWidget {
@@ -74,9 +74,8 @@ class _VideoExampleState extends State<VideoExample>
             margin: EdgeInsets.fromLTRB(16, 4, 16, 16),
             color: Colors.red,
             child: Text(
-              'The package used to process edited videos is still under '
-              'development and currently supports only Android, iOS, and '
-              'macOS.',
+              'The package "pro_video_editor" used to process edited videos is '
+              'still under development.',
               style: TextStyle(
                 color: Colors.red,
                 fontSize: 16,
@@ -93,28 +92,27 @@ class _VideoExampleState extends State<VideoExample>
               'editing to be set up in just a few lines of code. Additional '
               'required native code implementations are provided by my new '
               'package, pro_video_editor.'
-              '\n\n'
+              /*  '\n\n'
               'Choose one of the packages below that best suits your needs. '
               'Be sure to review which platforms each package supports, as '
-              'well as their pros and cons, before making a decision.',
+              'well as their pros and cons, before making a decision.' */
+              ,
             ),
           ),
-          if (kIsWeb && !_isWebEditingSupported)
-            const ParagraphInfoWidget(
-              margin: EdgeInsets.fromLTRB(16, 16, 16, 4),
-              color: Colors.red,
-              child: Text(
-                'The package does not support video editing on the web. You '
-                'can try it on any Dart-native platform, such as '
-                'Android or iOS.',
-                style: TextStyle(
-                  color: Colors.red,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                ),
+          const ParagraphInfoWidget(
+            margin: EdgeInsets.fromLTRB(16, 16, 16, 4),
+            color: Colors.red,
+            child: Text(
+              'Video editing is currently in beta mode on Android. Support for '
+              'other platforms will follow soon.',
+              style: TextStyle(
+                color: Colors.red,
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
               ),
-            )
-          else
+            ),
+          ),
+          if (kDebugMode || (!kIsWeb && Platform.isAndroid))
             ..._videoPackages.map((pkg) {
               return ListTile(
                 enabled: pkg.enabled,

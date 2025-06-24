@@ -1,5 +1,89 @@
 # Changelog
 
+## 9.13.0
+- **FEAT**(Text-Editor): Add the `inputTextFieldAlign` property to the `TextEditorConfigs` to dynamically align the input field. This was requested in [#502](https://github.com/hm21/pro_image_editor/issues/502).
+
+
+## 9.12.0
+- **FEAT**(import): Add `enableInitialEmptyState` to `ImportEditorConfigs` so the editor can replace the existing state history without including an empty first page.
+
+## 9.11.2
+- **FIX**(bottom-sheet): Wrap bottom sheets in `SafeArea` to ensure proper display within device safe zones.
+
+## 9.11.1
+- **FIX**(video-editor): Add missing `image` parameter to `GroundedFilterBar`.
+
+## 9.11.0
+- **FEAT**(video-editor): Added new parameters to `CompleteParameters` required for extending the editor with video editing.
+- **FIX**(video-editor): Fixed issue where filter previews were displayed incorrectly.
+- **FIX**(video-editor): Fixed issue where the trim bar lost its state when moving a layer.
+
+## 9.10.1
+- **FIX**(double-tap): Resolve issue where double tapping still zooms even when `enableZoom` is set to `false`. This resolves issue [#484](https://github.com/hm21/pro_image_editor/issues/484).
+
+## 9.10.0
+- **FEAT**(polygon): Added new paint-mode "polygon".
+
+## 9.9.5
+- **FIX**(widget-layer): `copyWith` now correctly includes `exportConfigs`. 
+
+## 9.9.4
+- **FIX**(Main-Editor): Corrected editor name handling in `openPage` to ensure proper behavior of `onOpenSubEditor`, `onStartCloseSubEditor` and `onEndCloseSubEditor`. This resolves issue [#474](https://github.com/hm21/pro_image_editor/issues/474).
+
+## 9.9.3
+- **FIX**(Layers): Corrected size calculation to prevent layer shifting.
+- **FIX**(Main-Editor): Fixed an issue where disabled layers blocked zoom gestures.
+
+## 9.9.2
+ - **FIX**(Crop-Rotate-Editor): Ensure the editor respects the `maxOutputSize` constraint.
+
+## 9.9.1
+ - **FIX**(Crop-Rotate-Editor): Prevent crashes when clamping values with reversed lower and upper limits. This resolves issue [#462](https://github.com/hm21/pro_image_editor/issues/462).
+
+## 9.9.0
+ - **FEAT**(Sticker-Editor): Added `builder` parameter to `StickerEditorConfigs`, which will replace `buildStickers` in the future. The new `builder` supports directly returning a `WidgetLayer` instead of just a `Widget`, enabling more flexibility and control.
+
+## 9.8.2
+ - **FIX**(Paint-Eraser): Resolved an issue where the layer eraser only worked when the user tapped on a layer.
+
+## 9.8.1
+ - **FIX**(Image-Generation): Resolved an issue that the image generation was slowly.
+
+## 9.8.0
+ - **FEAT**(Layer): Introduce `BoxConstraints` to `Layer` class for enhanced constraint management and layout control.
+
+## 9.7.3
+ - **FEAT**(Main-Editor): Add EditorSafeArea to the Main editor to follow SubEditor logic.
+
+## 9.7.2
+ - **FIX**(Tune-Editor): Ensure the back button works properly. This resolves issue [#449](https://github.com/hm21/pro_image_editor/issues/449).
+
+## 9.7.1
+ - **FIX**(Import): Ensure imported numbers are type-safe even if int and double are incorrect. This resolves issue [#447](https://github.com/hm21/pro_image_editor/issues/447).
+
+## 9.7.0
+- **FEAT**(image-converter): Add singleton `ImageConverter` class for format conversion without the image editor.
+
+## 9.6.1
+- **FIX**(double-tap): Resolved an issue where double-tapping interfered with pinch-to-zoom functionality. Resolves [#439](https://github.com/hm21/pro_image_editor/issues/439).
+- **FIX**(hit-detection): Prevent layer hit detection errors by clamping inner dimensions. Resolves [#440](https://github.com/hm21/pro_image_editor/issues/440).
+
+## 9.6.0
+- **FEAT**(double-tap):  Support double-tap to zoom in/out when zoom is enabled. More details in Feature-Request [#429](https://github.com/hm21/pro_image_editor/pull/429).
+
+## 9.5.2
+- **FIX**(zoom): Fixed issue where config `enableMainEditorZoomFactor` had no effect when creating a new text-layer. Resolves [#426](https://github.com/hm21/pro_image_editor/issues/426).
+
+## 9.5.1
+- **FIX**(onCompleteWithParameters): Return correct parameters on completion. Resolves [#403](https://github.com/hm21/pro_image_editor/issues/403).
+
+## 9.5.0
+- **FEAT**(callback): Added `copyWith` method to all callback models. More details in Feature-Request [#424](https://github.com/hm21/pro_image_editor/pull/424).
+- **FEAT**(zoom): Preserved zoom state by sharing Matrix4 between paint and main editor
+
+## 9.4.1
+- **FEAT**(callback): Added `onSelectedLayerChanged` callback to notify when the selected layer changes. More details in PR [#423](https://github.com/hm21/pro_image_editor/pull/423).
+
 ## 9.4.0
 - **FEAT**(jpeg-encoder): Add `jpegBackgroundColor` option to `ImageGenerationConfigs` to allow customization of JPEG background color.
 - **FIX**(crop_editor): Add missing copyWith parameters to ensure proper cloning of configuration states.

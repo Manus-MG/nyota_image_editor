@@ -78,7 +78,7 @@ class MockEditorImage extends _i1.Mock implements _i2.EditorImage {
       ) as _i2.EditorImageType);
 
   @override
-  _i4.Future<_i3.Uint8List> safeByteArray(_i5.BuildContext? context) =>
+  _i4.Future<_i3.Uint8List> safeByteArray([_i5.BuildContext? context]) =>
       (super.noSuchMethod(
         Invocation.method(
           #safeByteArray,

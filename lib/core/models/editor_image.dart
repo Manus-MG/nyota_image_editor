@@ -149,7 +149,7 @@ class EditorImage {
 
   /// A future that retrieves the image data as a `Uint8List` from the
   /// appropriate source based on the `EditorImageType`.
-  Future<Uint8List> safeByteArray(BuildContext context) async {
+  Future<Uint8List> safeByteArray([BuildContext? context]) async {
     Uint8List bytes;
     switch (type) {
       case EditorImageType.memory:
@@ -165,13 +165,15 @@ class EditorImage {
         break;
     }
 
-    if (!context.mounted) return bytes;
+    if (context != null) {
+      if (!context.mounted) return bytes;
 
-    await precacheImage(
-      MemoryImage(bytes),
-      context,
-      size: MediaQuery.sizeOf(context),
-    );
+      await precacheImage(
+        MemoryImage(bytes),
+        context,
+        size: MediaQuery.sizeOf(context),
+      );
+    }
 
     byteArray = bytes;
 

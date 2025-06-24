@@ -95,7 +95,9 @@ class ContentRecorderController {
 
   /// Cleans up resources, destroys threads, and closes the recorder stream.
   Future<void> destroy() async {
-    await recorderStream.close();
+    if (!recorderStream.isClosed && recorderStream.hasListener) {
+      await recorderStream.close();
+    }
     if (!recordReadyHelper.isCompleted) {
       recordReadyHelper.complete(true);
     }

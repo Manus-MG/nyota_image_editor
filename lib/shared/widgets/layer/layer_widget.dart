@@ -298,6 +298,8 @@ class _LayerWidgetState extends State<LayerWidget>
       callbacks: callbacks,
       selected: widget.selected,
       onEditLayer: widget.onEditTap,
+      forceIgnoreGestures:
+          !(interaction.enableSelection || interaction.enableEdit),
       isInteractive: widget.isInteractive,
       onScaleRotateDown: (details) {
         widget.onScaleRotateDown?.call(details, context.size ?? Size.zero);
@@ -353,16 +355,17 @@ class _LayerWidgetState extends State<LayerWidget>
 
   /// Builds the content widget based on the type of layer being displayed.
   Widget _buildContent() {
+    Widget? content;
     switch (_layerType) {
       case LayerWidgetType.emoji:
-        return LayerWidgetEmojiItem(
+        content = LayerWidgetEmojiItem(
           layer: _layer as EmojiLayer,
           emojiEditorConfigs: emojiEditorConfigs,
           textEditorConfigs: textEditorConfigs,
           designMode: designMode,
         );
       case LayerWidgetType.text:
-        return LayerWidgetTextItem(
+        content = LayerWidgetTextItem(
           layer: _layer as TextLayer,
           textEditorConfigs: textEditorConfigs,
           showMoveCursor: _showMoveCursor,
@@ -371,12 +374,12 @@ class _LayerWidgetState extends State<LayerWidget>
           },
         );
       case LayerWidgetType.widget:
-        return LayerWidgetCustomItem(
+        content = LayerWidgetCustomItem(
           layer: _layer as WidgetLayer,
           stickerEditorConfigs: stickerEditorConfigs,
         );
       case LayerWidgetType.canvas:
-        return LayerWidgetPaintItem(
+        content = LayerWidgetPaintItem(
           layer: _layer as PaintLayer,
           scale: widget.layerData.scale,
           isSelected: widget.selected,
@@ -387,12 +390,21 @@ class _LayerWidgetState extends State<LayerWidget>
           },
         );
       case LayerWidgetType.censor:
-        return LayerWidgetCensorItem(
+        content = LayerWidgetCensorItem(
           layer: _layer as PaintLayer,
           censorConfigs: paintEditorConfigs.censorConfigs,
         );
       default:
         return const SizedBox.shrink();
     }
+
+    if (_layer.boxConstraints != null) {
+      content = ConstrainedBox(
+        constraints: _layer.boxConstraints!,
+        child: content,
+      );
+    }
+
+    return content;
   }
 }

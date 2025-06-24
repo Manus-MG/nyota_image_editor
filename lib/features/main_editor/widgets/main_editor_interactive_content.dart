@@ -142,14 +142,16 @@ class MainEditorInteractiveContent extends StatelessWidget {
 
           /// Build video controls
           if (isVideoEditor)
-            AnimatedSwitcher(
+            AnimatedOpacity(
+              opacity: isLayerSelected ? 0 : 1,
               duration: configs.layerInteraction.videoControlsSwitchDuration,
-              child: isLayerSelected
-                  ? const SizedBox.shrink()
-                  : VideoEditorConfigurable(
-                      controller: videoController!,
-                      child: const VideoEditorControlsWidget(),
-                    ),
+              child: IgnorePointer(
+                ignoring: isLayerSelected,
+                child: VideoEditorConfigurable(
+                  controller: videoController!,
+                  child: const VideoEditorControlsWidget(),
+                ),
+              ),
             ),
 
           /// Build helper content
@@ -174,10 +176,7 @@ class MainEditorInteractiveContent extends StatelessWidget {
     var paintConfigs = configs.paintEditor;
     return ExtendedInteractiveViewer(
       key: interactiveViewerKey,
-      boundaryMargin: mainConfigs.boundaryMargin,
-      enableZoom: mainConfigs.enableZoom,
-      minScale: mainConfigs.editorMinScale,
-      maxScale: mainConfigs.editorMaxScale,
+      zoomConfigs: mainConfigs,
       onInteractionStart: (details) {
         callbacks.mainEditorCallbacks?.onEditorZoomScaleStart?.call(details);
         layerInteractionManager.freeStyleHighPerformanceEditorZoom =
@@ -196,6 +195,10 @@ class MainEditorInteractiveContent extends StatelessWidget {
         layerInteractionManager.freeStyleHighPerformanceEditorZoom = false;
         controllers.uiLayerCtrl.add(null);
         controllers.cropLayerPainterCtrl.add(null);
+      },
+      onMatrix4Change: (value) {
+        controllers.cropLayerPainterCtrl.add(null);
+        callbacks.mainEditorCallbacks?.onEditorZoomMatrix4Change?.call(value);
       },
       child: isVideoEditor
           ? Stack(

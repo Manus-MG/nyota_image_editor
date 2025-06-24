@@ -60,7 +60,8 @@ class _FrostedGlassExampleState extends State<FrostedGlassExample>
         callbacks: ProImageEditorCallbacks(
             onImageEditingStarted: onImageEditingStarted,
             onImageEditingComplete: onImageEditingComplete,
-            onCloseEditor: onCloseEditor,
+            onCloseEditor: (editorMode) =>
+                onCloseEditor(editorMode: editorMode),
             mainEditorCallbacks: MainEditorCallbacks(
               helperLines: HelperLinesCallbacks(onLineHit: vibrateLineHit),
             ),
@@ -235,7 +236,7 @@ class _FrostedGlassExampleState extends State<FrostedGlassExample>
           ),
           stickerEditor: StickerEditorConfigs(
             enabled: true,
-            buildStickers: (setLayer, scrollController) => DemoBuildStickers(
+            builder: (setLayer, scrollController) => DemoBuildStickers(
                 setLayer: setLayer, scrollController: scrollController),
           ),
           layerInteraction: const LayerInteractionConfigs(

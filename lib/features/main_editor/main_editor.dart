@@ -5,7 +5,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:pro_image_editor/core/models/complete_parameters.dart';
 
 import '/core/mixins/converted_configs.dart';
 import '/core/mixins/editor_callbacks_mixin.dart';
@@ -28,6 +27,7 @@ import '/shared/utils/file_constructor_utils.dart';
 import '/shared/widgets/adaptive_dialog.dart';
 import '/shared/widgets/extended/extended_interactive_viewer.dart';
 import '/shared/widgets/screen_resize_detector.dart';
+import '../../shared/mixins/editor_zoom.mixin.dart';
 import '../filter_editor/types/filter_matrix.dart';
 import '../filter_editor/widgets/filter_generator.dart';
 import '../tune_editor/models/tune_adjustment_matrix.dart';
@@ -284,7 +284,7 @@ class ProImageEditor extends StatefulWidget
   /// - [byteArray] - Raw image data as a `Uint8List` (highest priority).
   /// - [file] - A `File` instance representing a local image file.
   /// - [networkUrl] - URL pointing to an image on the internet.
-  /// - [assetPath] - Path to an image stored in the app’s assets.
+  /// - [assetPath] - Path to an image stored in the app's assets.
   /// - [editorImage] - An `EditorImage` instance containing one of the above.
   /// - [configs] - Optional configuration settings for the editor.
   /// - [callbacks] - Required callbacks for handling image editor events.
@@ -358,11 +358,13 @@ class ProImageEditorState extends State<ProImageEditor>
         ImageEditorConvertedConfigs,
         SimpleConfigsAccessState,
         SimpleCallbacksAccessState,
-        MainEditorGlobalKeys {
+        MainEditorGlobalKeys,
+        EditorZoomMixin {
   final _bottomBarKey = GlobalKey();
   final _removeAreaKey = GlobalKey();
   final _backgroundImageColorFilterKey = GlobalKey<ColorFilterGeneratorState>();
-  final _interactiveViewer = GlobalKey<ExtendedInteractiveViewerState>();
+  @override
+  final interactiveViewer = GlobalKey<ExtendedInteractiveViewerState>();
   late final StreamController<void> _rebuildController;
 
   /// Helper class for managing sizes and layout calculations.
@@ -378,6 +380,7 @@ class ProImageEditorState extends State<ProImageEditor>
   late final LayerInteractionManager layerInteractionManager =
       LayerInteractionManager(
     helperLinesCallbacks: mainEditorCallbacks?.helperLines,
+    onSelectedLayerChanged: mainEditorCallbacks?.onSelectedLayerChanged,
   );
 
   /// Manager class for managing the state of the editor.
@@ -546,7 +549,7 @@ class ProImageEditorState extends State<ProImageEditor>
   }
 
   void _checkInteractiveViewer() {
-    _interactiveViewer.currentState?.setEnableInteraction(
+    interactiveViewer.currentState?.setEnableInteraction(
       selectedLayerIndex < 0 && layerInteractionManager.selectedLayerId.isEmpty,
     );
   }
@@ -759,13 +762,13 @@ class ProImageEditorState extends State<ProImageEditor>
     _checkInteractiveViewer();
     _controllers.uiLayerCtrl.add(null);
 
-    /* 
+    /*
     String selectedLayerId = _layerInteractionManager.selectedLayerId;
     _layerInteractionManager.selectedLayerId = '';
     setState(() {});
     takeScreenshot();
     if (selectedLayerId.isNotEmpty) {
-      /// Skip one frame to ensure captured image in separate thread will not 
+      /// Skip one frame to ensure captured image in separate thread will not
       /// capture the border.
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         _layerInteractionManager.selectedLayerId = selectedLayerId;
@@ -971,15 +974,11 @@ class ProImageEditorState extends State<ProImageEditor>
     });
   }
 
-  /// Resets the zoom and pan of the image editor.
+  @override
   void resetZoom() {
-    _interactiveViewer.currentState?.reset();
+    super.resetZoom();
     _controllers.cropLayerPainterCtrl.add(null);
   }
-
-  /// Returns the current scale factor of the image editor.
-  double get editorScaleFactor =>
-      _interactiveViewer.currentState?.scaleFactor ?? 1.0;
 
   /// Handle the start of a scaling operation.
   ///
@@ -1068,10 +1067,9 @@ class ProImageEditorState extends State<ProImageEditor>
           details: details,
           editorSize: sizesManager.bodySize,
           layerTheme: layerInteraction.style,
-          editorScaleFactor:
-              _interactiveViewer.currentState?.scaleFactor ?? 1.0,
+          editorScaleFactor: interactiveViewer.currentState?.scaleFactor ?? 1.0,
           editorScaleOffset:
-              _interactiveViewer.currentState?.offset ?? Offset.zero,
+              interactiveViewer.currentState?.offset ?? Offset.zero,
         );
       _activeLayer!.key.currentState!.setState(() {});
       checkUpdateHelperLineUI();
@@ -1079,7 +1077,7 @@ class ProImageEditorState extends State<ProImageEditor>
     }
 
     double editorScaleFactor =
-        _interactiveViewer.currentState?.scaleFactor ?? 1.0;
+        interactiveViewer.currentState?.scaleFactor ?? 1.0;
 
     layerInteractionManager.enabledHitDetection = false;
     if (details.pointerCount == 1) {
@@ -1146,7 +1144,7 @@ class ProImageEditorState extends State<ProImageEditor>
         theme: _theme,
         callbacks: callbacks,
         scaleFactor: textEditorConfigs.enableMainEditorZoomFactor
-            ? _interactiveViewer.currentState?.scaleFactor ?? 1.0
+            ? interactiveViewer.currentState?.scaleFactor ?? 1.0
             : 1.0,
       ),
 
@@ -1230,17 +1228,19 @@ class ProImageEditorState extends State<ProImageEditor>
 
     SubEditor editorName = SubEditor.unknown;
 
-    if (T is PaintEditor) {
+    if (T is List<PaintLayer> || page is PaintEditor) {
       editorName = SubEditor.paint;
-    } else if (T is TextEditor) {
+    } else if (T is TextLayer || page is TextEditor) {
       editorName = SubEditor.text;
-    } else if (T is CropRotateEditor) {
+    } else if (T is TransformConfigs || page is CropRotateEditor) {
       editorName = SubEditor.cropRotate;
-    } else if (T is FilterEditor) {
+    } else if (T is TuneAdjustmentMatrix || page is TuneEditor) {
+      editorName = SubEditor.tune;
+    } else if (T is FilterMatrix || page is FilterEditor) {
       editorName = SubEditor.filter;
-    } else if (T is BlurEditor) {
+    } else if (T is double || page is BlurEditor) {
       editorName = SubEditor.blur;
-    } else if (T is EmojiEditor) {
+    } else if (page is EmojiEditor) {
       editorName = SubEditor.emoji;
     }
 
@@ -1348,6 +1348,17 @@ class ProImageEditorState extends State<ProImageEditor>
   /// After closing the paint editor, any changes made are applied to the
   /// image's layers.
   void openPaintEditor() async {
+    var paintCallbacks =
+        callbacks.paintEditorCallbacks ?? const PaintEditorCallbacks();
+    var overridenPaintCallbacks = paintCallbacks.copyWith(
+      onEditorZoomMatrix4Change: (value) {
+        callbacks.paintEditorCallbacks?.onEditorZoomMatrix4Change?.call(value);
+        if (paintEditorConfigs.enableShareZoomMatrix) {
+          interactiveViewer.currentState?.transformMatrix4 = value;
+        }
+      },
+    );
+
     List<PaintLayer>? paintItemLayers = await openPage<List<PaintLayer>>(
       PaintEditor.autoSource(
         key: paintEditor,
@@ -1355,7 +1366,8 @@ class ProImageEditorState extends State<ProImageEditor>
         videoController: widget.videoController,
         initConfigs: PaintEditorInitConfigs(
           configs: configs,
-          callbacks: callbacks,
+          callbacks:
+              callbacks.copyWith(paintEditorCallbacks: overridenPaintCallbacks),
           layers: activeLayers,
           theme: _theme,
           mainImageSize: sizesManager.decodedImageSize,
@@ -1364,6 +1376,7 @@ class ProImageEditorState extends State<ProImageEditor>
           appliedBlurFactor: stateManager.activeBlur,
           appliedFilters: stateManager.activeFilters,
           appliedTuneAdjustments: stateManager.activeTuneAdjustments,
+          initialZoomMatrix: interactiveViewer.currentState?.transformMatrix4,
         ),
       ),
       duration: const Duration(milliseconds: 150),
@@ -1398,7 +1411,9 @@ class ProImageEditorState extends State<ProImageEditor>
         configs: configs,
         theme: _theme,
         callbacks: callbacks,
-        scaleFactor: _interactiveViewer.currentState?.scaleFactor ?? 1.0,
+        scaleFactor: textEditorConfigs.enableMainEditorZoomFactor
+            ? interactiveViewer.currentState?.scaleFactor ?? 1.0
+            : 1.0,
       ),
       duration: duration,
     );
@@ -1628,32 +1643,31 @@ class ProImageEditorState extends State<ProImageEditor>
         showDragHandle: emojiEditorConfigs.style.showDragHandle,
         isScrollControlled: true,
         useSafeArea: true,
-        builder: (BuildContext context) {
-          if (!useDraggableSheet) {
-            return ConstrainedBox(
-              constraints: effectiveBoxConstraints ??
-                  BoxConstraints(
-                      maxHeight: 300 + MediaQuery.viewInsetsOf(context).bottom),
-              child: EmojiEditor(configs: configs),
-            );
-          }
-
-          return DraggableScrollableSheet(
-              expand: sheetTheme.expand,
-              initialChildSize: sheetTheme.initialChildSize,
-              maxChildSize: sheetTheme.maxChildSize,
-              minChildSize: sheetTheme.minChildSize,
-              shouldCloseOnMinExtent: sheetTheme.shouldCloseOnMinExtent,
-              snap: sheetTheme.snap,
-              snapAnimationDuration: sheetTheme.snapAnimationDuration,
-              snapSizes: sheetTheme.snapSizes,
-              builder: (_, controller) {
-                return EmojiEditor(
-                  configs: configs,
-                  scrollController: controller,
-                );
-              });
-        });
+        builder: (BuildContext context) => SafeArea(
+              child: !useDraggableSheet
+                  ? ConstrainedBox(
+                      constraints: effectiveBoxConstraints ??
+                          BoxConstraints(
+                              maxHeight: 300 +
+                                  MediaQuery.viewInsetsOf(context).bottom),
+                      child: EmojiEditor(configs: configs),
+                    )
+                  : DraggableScrollableSheet(
+                      expand: sheetTheme.expand,
+                      initialChildSize: sheetTheme.initialChildSize,
+                      maxChildSize: sheetTheme.maxChildSize,
+                      minChildSize: sheetTheme.minChildSize,
+                      shouldCloseOnMinExtent: sheetTheme.shouldCloseOnMinExtent,
+                      snap: sheetTheme.snap,
+                      snapAnimationDuration: sheetTheme.snapAnimationDuration,
+                      snapSizes: sheetTheme.snapSizes,
+                      builder: (_, controller) {
+                        return EmojiEditor(
+                          configs: configs,
+                          scrollController: controller,
+                        );
+                      }),
+            ));
     ServicesBinding.instance.keyboard.addHandler(_onKeyEvent);
     if (layer == null || !mounted) return;
     layer.scale = emojiEditorConfigs.initScale;
@@ -1680,24 +1694,24 @@ class ProImageEditorState extends State<ProImageEditor>
         showDragHandle: stickerEditorConfigs.style.showDragHandle,
         isScrollControlled: true,
         useSafeArea: true,
-        builder: (_) {
-          return DraggableScrollableSheet(
-            expand: sheetTheme.expand,
-            initialChildSize: sheetTheme.initialChildSize,
-            maxChildSize: sheetTheme.maxChildSize,
-            minChildSize: sheetTheme.minChildSize,
-            shouldCloseOnMinExtent: sheetTheme.shouldCloseOnMinExtent,
-            snap: sheetTheme.snap,
-            snapAnimationDuration: sheetTheme.snapAnimationDuration,
-            snapSizes: sheetTheme.snapSizes,
-            builder: (_, controller) {
-              return StickerEditor(
-                configs: configs,
-                scrollController: controller,
-              );
-            },
-          );
-        });
+        builder: (_) => SafeArea(
+              child: DraggableScrollableSheet(
+                expand: sheetTheme.expand,
+                initialChildSize: sheetTheme.initialChildSize,
+                maxChildSize: sheetTheme.maxChildSize,
+                minChildSize: sheetTheme.minChildSize,
+                shouldCloseOnMinExtent: sheetTheme.shouldCloseOnMinExtent,
+                snap: sheetTheme.snap,
+                snapAnimationDuration: sheetTheme.snapAnimationDuration,
+                snapSizes: sheetTheme.snapSizes,
+                builder: (_, controller) {
+                  return StickerEditor(
+                    configs: configs,
+                    scrollController: controller,
+                  );
+                },
+              ),
+            ));
     ServicesBinding.instance.keyboard.addHandler(_onKeyEvent);
     if (layer == null || !mounted) return;
 
@@ -1876,13 +1890,15 @@ class ProImageEditorState extends State<ProImageEditor>
             flipY: transform.is90DegRotated ? transform.flipX : transform.flipY,
             rotateTurns: transform.angleToTurns(),
             image: bytes,
+            isTransformed: isTransformed,
+            layers: activeLayers,
           ),
         );
       }
 
       LoadingDialog.instance.hide();
 
-      onCloseEditor?.call();
+      onCloseEditor?.call(EditorMode.main);
 
       /// Allow users to continue editing if they didn't close the editor.
       setState(() => _isProcessingFinalImage = false);
@@ -1941,7 +1957,7 @@ class ProImageEditorState extends State<ProImageEditor>
       if (onCloseEditor == null) {
         Navigator.pop(context);
       } else {
-        onCloseEditor!.call();
+        onCloseEditor!.call(EditorMode.main);
       }
     } else {
       closeWarning();
@@ -1997,7 +2013,7 @@ class ProImageEditorState extends State<ProImageEditor>
       if (onCloseEditor == null) {
         if (mounted) Navigator.pop(context);
       } else {
-        onCloseEditor!.call();
+        onCloseEditor!.call(EditorMode.main);
       }
     }
 
@@ -2189,6 +2205,10 @@ class ProImageEditorState extends State<ProImageEditor>
               child: Theme(
                 data: _theme,
                 child: SafeArea(
+                  top: mainEditorConfigs.safeArea.top,
+                  bottom: mainEditorConfigs.safeArea.bottom,
+                  left: mainEditorConfigs.safeArea.left,
+                  right: mainEditorConfigs.safeArea.right,
                   child: LayoutBuilder(builder: (context, constraints) {
                     sizesManager.editorSize = constraints.biggest;
                     return Scaffold(
@@ -2238,6 +2258,14 @@ class ProImageEditorState extends State<ProImageEditor>
               duration: const Duration(milliseconds: 200),
               child: Listener(
                 behavior: HitTestBehavior.translucent,
+                onPointerDown: (details) {
+                  bool isDoubleTap = detectDoubleTap(details);
+                  if (!isDoubleTap) return;
+
+                  handleDoubleTap(context, details, mainEditorConfigs);
+                  mainEditorCallbacks?.onDoubleTap?.call();
+                },
+                onPointerUp: onPointerUp,
                 onPointerSignal: isDesktop && _activeLayer != null
                     ? (event) {
                         if (_activeLayer == null) return;
@@ -2256,10 +2284,11 @@ class ProImageEditorState extends State<ProImageEditor>
                       _checkInteractiveViewer();
                       setState(() {});
                     }
-                    widget.videoController?.togglePlayState();
+                    if (!configs.videoEditor.enablePlayButton) {
+                      widget.videoController?.togglePlayState();
+                    }
                     mainEditorCallbacks?.onTap?.call();
                   },
-                  onDoubleTap: mainEditorCallbacks?.onDoubleTap,
                   onLongPress: mainEditorCallbacks?.onLongPress,
                   onScaleStart: _onScaleStart,
                   onScaleUpdate: _onScaleUpdate,
@@ -2292,7 +2321,7 @@ class ProImageEditorState extends State<ProImageEditor>
       processFinalImage: _isProcessingFinalImage,
       rebuildController: _rebuildController,
       stateManager: stateManager,
-      interactiveViewerKey: _interactiveViewer,
+      interactiveViewerKey: interactiveViewer,
       state: this,
       videoController: widget.videoController,
       isVideoEditor: _isVideoEditor,
@@ -2351,7 +2380,7 @@ class ProImageEditorState extends State<ProImageEditor>
       sizesManager: sizesManager,
       layerInteractionManager: layerInteractionManager,
       controllers: _controllers,
-      interactiveViewer: _interactiveViewer,
+      interactiveViewer: interactiveViewer,
       helperLines: helperLines,
       configs: configs,
     );

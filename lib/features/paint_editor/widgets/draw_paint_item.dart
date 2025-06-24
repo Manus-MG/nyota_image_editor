@@ -123,6 +123,11 @@ class DrawPaintItem extends CustomPainter {
           double centerX = (strokeRect.left + strokeRect.right) / 2;
           double centerY = (strokeRect.top + strokeRect.bottom) / 2;
 
+          final innerWidth =
+              (strokeRect.width - strokeW).clamp(0.0, double.infinity);
+          final innerHeight =
+              (strokeRect.height - strokeW).clamp(0.0, double.infinity);
+
           path.addRect(
             Rect.fromCenter(
               center: Offset(centerX, centerY),
@@ -131,13 +136,15 @@ class DrawPaintItem extends CustomPainter {
             ),
           );
 
-          insideStrokePath.addRect(
-            Rect.fromCenter(
-              center: Offset(centerX, centerY),
-              width: strokeRect.width - strokeW,
-              height: strokeRect.height - strokeW,
-            ),
-          );
+          if (innerWidth > 0 && innerHeight > 0) {
+            insideStrokePath.addRect(
+              Rect.fromCenter(
+                center: Offset(centerX, centerY),
+                width: strokeRect.width - strokeW,
+                height: strokeRect.height - strokeW,
+              ),
+            );
+          }
           item.hit =
               path.contains(position) && !insideStrokePath.contains(position);
         }
@@ -154,6 +161,11 @@ class DrawPaintItem extends CustomPainter {
           double centerX = (ovalRect.left + ovalRect.right) / 2;
           double centerY = (ovalRect.top + ovalRect.bottom) / 2;
 
+          final innerWidth =
+              (ovalRect.width - strokeW).clamp(0.0, double.infinity);
+          final innerHeight =
+              (ovalRect.height - strokeW).clamp(0.0, double.infinity);
+
           path.addOval(
             Rect.fromCenter(
               center: Offset(centerX, centerY),
@@ -162,17 +174,70 @@ class DrawPaintItem extends CustomPainter {
             ),
           );
 
-          insideStrokePath.addOval(
-            Rect.fromCenter(
-              center: Offset(centerX, centerY),
-              width: ovalRect.width - strokeW,
-              height: ovalRect.height - strokeW,
-            ),
-          );
+          if (innerWidth > 0 && innerHeight > 0) {
+            insideStrokePath.addOval(
+              Rect.fromCenter(
+                center: Offset(centerX, centerY),
+                width: ovalRect.width - strokeW,
+                height: ovalRect.height - strokeW,
+              ),
+            );
+          }
         }
         item.hit =
             path.contains(position) && !insideStrokePath.contains(position);
         break;
+      case PaintMode.polygon:
+        final polygonOffsets =
+            offsets.whereType<Offset>().map((o) => o * scale).toList();
+
+        if (polygonOffsets.length < 2) {
+          item.hit = false;
+          break;
+        }
+
+        bool isClosed =
+            (polygonOffsets.first - polygonOffsets.last).distance < 0.5;
+        final pointCount = polygonOffsets.length;
+
+        item.hit = false;
+
+        // Check if inside if it's a filled polygon
+        if (item.fill && polygonOffsets.length >= 3) {
+          final path =
+              PaintElement().drawPolygon(offsets: offsets, scale: scale);
+          if (path != null && path.contains(position)) {
+            item.hit = true;
+            break;
+          }
+        }
+
+        // Otherwise check each edge
+        for (int i = 0; i < pointCount - 1; i++) {
+          if (_hitTestLineWithStroke(
+            start: polygonOffsets[i],
+            end: polygonOffsets[i + 1],
+            strokeHalfWidth: strokeHalfW,
+            position: position,
+          )) {
+            item.hit = true;
+            break;
+          }
+        }
+
+        // Also check closing edge if polygon is closed
+        if (!item.hit && isClosed && polygonOffsets.length >= 3) {
+          if (_hitTestLineWithStroke(
+            start: polygonOffsets.last,
+            end: polygonOffsets.first,
+            strokeHalfWidth: strokeHalfW,
+            position: position,
+          )) {
+            item.hit = true;
+          }
+        }
+        break;
+
       default:
         item.hit = true;
     }
