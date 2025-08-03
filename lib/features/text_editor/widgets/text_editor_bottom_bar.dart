@@ -32,7 +32,7 @@ class TextEditorBottomBar extends StatefulWidget {
 }
 
 class _TextEditorBottomBarState extends State<TextEditorBottomBar> {
-  final double _space = 10;
+  final double _space = 6;
 
   @override
   Widget build(BuildContext context) {
@@ -43,16 +43,10 @@ class _TextEditorBottomBarState extends State<TextEditorBottomBar> {
     return Container(
       color: widget.configs.textEditor.style.bottomBarBackground,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         scrollDirection: Axis.horizontal,
-        child: ConstrainedBox(
-          constraints:
-              BoxConstraints(minWidth: MediaQuery.sizeOf(context).width),
-          child: Row(
-            mainAxisAlignment:
-                widget.configs.textEditor.style.bottomBarMainAxisAlignment,
-            children: _buildIconButtons(),
-          ),
+        child: Row(
+          children: _buildIconButtons(),
         ),
       ),
     );
@@ -66,20 +60,31 @@ class _TextEditorBottomBarState extends State<TextEditorBottomBar> {
     buttons.add(
       Padding(
         padding: EdgeInsets.symmetric(horizontal: _space),
-        child: IconButton(
-          onPressed: _showFontSelectionOverlay,
-          icon: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.grid_view, size: 16),
-              SizedBox(width: 4),
-              Text('See All', style: TextStyle(fontSize: 12)),
-            ],
-          ),
-          style: IconButton.styleFrom(
-            backgroundColor: Colors.blue.withValues(alpha: 0.7),
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: GestureDetector(
+          onTap: _showFontSelectionOverlay,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.blue,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blue.withValues(alpha: 0.3),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.apps, size: 14, color: Colors.white),
+                SizedBox(width: 4),
+                Text('All', 
+                    style: TextStyle(fontSize: 10, color: Colors.white, 
+                                     fontWeight: FontWeight.w600)),
+              ],
+            ),
           ),
         ),
       ),
@@ -92,31 +97,60 @@ class _TextEditorBottomBarState extends State<TextEditorBottomBar> {
         (index) {
           var selected = widget.selectedStyle;
           bool isSelected = selected.hashCode == items[index].hashCode;
-          
-          // Get contrast colors for better visibility
-          Color backgroundColor = isSelected 
-              ? Colors.white 
-              : Colors.grey.shade800;
-          Color textColor = _getContrastColor(backgroundColor);
 
           return Padding(
             padding: EdgeInsets.symmetric(horizontal: _space),
-            child: IconButton(
-              onPressed: () => widget.onFontChange(items[index]),
-              icon: Text(
-                items[index].fontFamily ?? 'Default',
-                style: items[index].copyWith(
-                  color: textColor,
-                  fontSize: 12,
+            child: GestureDetector(
+              onTap: () => widget.onFontChange(items[index]),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected 
+                      ? Colors.blue.withValues(alpha: 0.15)
+                      : Colors.grey.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSelected ? Colors.blue : Colors.transparent,
+                    width: 2,
+                  ),
+                  boxShadow: isSelected ? [
+                    BoxShadow(
+                      color: Colors.blue.withValues(alpha: 0.3),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ] : null,
                 ),
-              ),
-              style: IconButton.styleFrom(
-                backgroundColor: backgroundColor,
-                foregroundColor: textColor,
-                side: isSelected 
-                    ? const BorderSide(color: Colors.blue, width: 2) 
-                    : null,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Stack(
+                  children: [
+                    Text(
+                      items[index].fontFamily ?? 'Default',
+                      style: items[index].copyWith(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                    if (isSelected)
+                      Positioned(
+                        top: -2,
+                        right: -2,
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: const BoxDecoration(
+                            color: Colors.blue,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.check,
+                            size: 8,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           );
@@ -125,13 +159,6 @@ class _TextEditorBottomBarState extends State<TextEditorBottomBar> {
     );
     
     return buttons;
-  }
-  
-  /// Calculate contrast color for better visibility
-  Color _getContrastColor(Color backgroundColor) {
-    double luminance = (0.299 * backgroundColor.r + 
-        0.587 * backgroundColor.g + 0.114 * backgroundColor.b) / 255;
-    return luminance > 0.5 ? Colors.black : Colors.white;
   }
   
   /// Show font selection overlay with all fonts
