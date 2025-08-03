@@ -1,6 +1,4 @@
 // Dart imports:
-// ignore_for_file: deprecated_member_use_from_same_package
-
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'dart:ui';
@@ -43,6 +41,7 @@ import 'utils/rotate_angle.dart';
 import 'widgets/crop_corner_painter.dart';
 import 'widgets/outside_gestures/outside_gesture_behavior.dart';
 
+export 'enums/crop_mode.enum.dart';
 export 'widgets/crop_aspect_ratio_options.dart';
 
 /// The `CropRotateEditor` widget allows users to editing images with crop, flip
@@ -87,7 +86,7 @@ class CropRotateEditor extends StatefulWidget
 
   /// Constructs a `CropRotateEditor` widget with an image loaded from a file.
   factory CropRotateEditor.file(
-    File file, {
+    dynamic file, {
     Key? key,
     required CropRotateEditorInitConfigs initConfigs,
   }) {
@@ -132,7 +131,7 @@ class CropRotateEditor extends StatefulWidget
   factory CropRotateEditor.autoSource({
     Key? key,
     Uint8List? byteArray,
-    File? file,
+    dynamic file,
     String? assetPath,
     String? networkUrl,
     EditorImage? editorImage,
@@ -146,7 +145,7 @@ class CropRotateEditor extends StatefulWidget
           : editorImage ??
               EditorImage(
                 byteArray: byteArray,
-                file: file == null ? null : ensureFileInstance(file),
+                file: file,
                 networkUrl: networkUrl,
                 assetPath: assetPath,
               ),
@@ -341,6 +340,9 @@ class CropRotateEditorState extends State<CropRotateEditor>
 
   bool _hasToolbar = true;
 
+  /// A flag indicating whether the screen has been resized.
+  bool _isScreenResized = false;
+
   /// Sets the current mouse cursor and updates the widget that manages the
   /// cursor.
   set _cursor(MouseCursor cursor) {
@@ -366,7 +368,7 @@ class CropRotateEditorState extends State<CropRotateEditor>
             ),
             fadeInOpacity: _painterOpacity,
             style: cropRotateEditorConfigs.style,
-            drawCircle: cropRotateEditorConfigs.enableRoundCropper,
+            drawCircle: cropMode == CropMode.oval,
           )
         : null;
   }
@@ -729,7 +731,6 @@ class CropRotateEditorState extends State<CropRotateEditor>
       return;
     }
     _interactionActive = true;
-    initConfigs.onImageEditingStarted?.call();
     initConfigs.callbacks.onImageEditingStarted?.call();
 
     /// If the user set a custom initAspectRatio we need to enforce add
@@ -821,7 +822,6 @@ class CropRotateEditorState extends State<CropRotateEditor>
 
       var imageBytes = bytes ?? Uint8List.fromList([]);
 
-      await initConfigs.onImageEditingComplete?.call(imageBytes);
       await initConfigs.callbacks.onImageEditingComplete?.call(imageBytes);
 
       if (!mounted) return;
@@ -873,7 +873,6 @@ class CropRotateEditorState extends State<CropRotateEditor>
 
       LoadingDialog.instance.hide();
 
-      initConfigs.onCloseEditor?.call();
       initConfigs.callbacks.onCloseEditor?.call(EditorMode.cropRotate);
     }
     cropRotateEditorCallbacks?.handleDone();
@@ -904,6 +903,7 @@ class CropRotateEditorState extends State<CropRotateEditor>
             flipX: flipX,
             flipY: flipY,
             offset: translate,
+            cropMode: cropMode,
           ),
         );
       }
@@ -1123,14 +1123,37 @@ class CropRotateEditorState extends State<CropRotateEditor>
   /// angle of zero.
   /// 6. Updates all relevant states in the editor.
   void updateAspectRatio(double value) {
-    reset(skipAddHistory: true);
     aspectRatio = value;
     cropRotateEditorCallbacks?.handleRatioSelected(value);
 
     calcCropRect();
     calcFitToScreen();
-    addHistory(scaleRotation: oldScaleFactor, angle: 0);
+    _setOffsetLimits();
+    addHistory(scaleRotation: oldScaleFactor);
     _updateAllStates();
+  }
+
+  late CropMode _cropMode = widget.initConfigs.transformConfigs?.cropMode ??
+      cropRotateEditorConfigs.initialCropMode;
+
+  /// Gets the current crop mode.
+  ///
+  /// Returns [CropMode.circular] if the round cropper is enabled,
+  /// otherwise returns [CropMode.rectangular].
+  @override
+  CropMode get cropMode => _cropMode;
+
+  /// Sets the crop mode.
+  ///
+  /// If [value] is [CropMode.circular], it enables the round cropper,
+  /// sets the aspect ratio to 1 (square), and updates the internal state.
+  /// If [value] is [CropMode.rectangular], it disables the round cropper
+  /// and updates the internal state accordingly.
+  @override
+  set cropMode(CropMode value) {
+    _cropMode = value;
+    _updateAllStates();
+    addHistory();
   }
 
   @override
@@ -1180,15 +1203,24 @@ class CropRotateEditorState extends State<CropRotateEditor>
             translate * userScaleFactor;
     double dx = offset.dx;
     double dy = offset.dy;
-
-    if (cropRotateEditorConfigs.enableRoundCropper) {
+    if (cropMode == CropMode.oval) {
       double halfWidth = cropRect.width / 2;
       double halfHeight = cropRect.height / 2;
-
       double halfInteractiveCornerArea = _interactiveCornerArea / 2;
 
-      if (halfWidth + halfInteractiveCornerArea > offset.distance ||
-          halfHeight + halfInteractiveCornerArea > offset.distance) {
+      // Normalize against expanded ellipse for hit area
+      double ellipseHitX = dx / (halfWidth + halfInteractiveCornerArea);
+      double ellipseHitY = dy / (halfHeight + halfInteractiveCornerArea);
+      bool isWithinHitArea =
+          (ellipseHitX * ellipseHitX + ellipseHitY * ellipseHitY) <= 1;
+
+      // Normalize against exact ellipse for inside check
+      double normalizedX = dx / (halfWidth - halfInteractiveCornerArea);
+      double normalizedY = dy / (halfHeight - halfInteractiveCornerArea);
+      bool isInsideEllipse =
+          (normalizedX * normalizedX + normalizedY * normalizedY) <= 1;
+
+      if (isWithinHitArea) {
         double cursorAreaHitWidth = halfWidth * 0.5;
         double cursorAreaHitHeight = halfHeight * 0.5;
 
@@ -1197,7 +1229,7 @@ class CropRotateEditorState extends State<CropRotateEditor>
         bool nearLeftEdge = dx < -cursorAreaHitWidth;
         bool nearRightEdge = dx > cursorAreaHitWidth;
 
-        if (offset.distance < halfWidth - halfInteractiveCornerArea) {
+        if (isInsideEllipse) {
           return CropAreaPart.inside;
         }
         // Bottom Left
@@ -1430,8 +1462,6 @@ class CropRotateEditorState extends State<CropRotateEditor>
             ) +
             _startingTranslate * _startingPinchScale;
 
-        bool roundCropper = cropRotateEditorConfigs.enableRoundCropper;
-
         double imgW = _renderedImgConstraints.maxWidth;
         double imgH = _renderedImgConstraints.maxHeight;
 
@@ -1449,7 +1479,7 @@ class CropRotateEditorState extends State<CropRotateEditor>
         double circleGapX = 0;
         double circleGapY = 0;
 
-        if (roundCropper) {
+        if (cropMode == CropMode.oval) {
           circleGapX = sqrt(pow(halfViewRectW, 2) -
                   pow(min(offset.dy.abs(), halfViewRectW), 2)) -
               halfViewRectW;
@@ -2168,6 +2198,11 @@ class CropRotateEditorState extends State<CropRotateEditor>
       child: ScreenResizeDetector(
         ignoreSafeArea: false,
         onResizeUpdate: (event) {
+          if (event.oldContentSize != event.newContentSize &&
+              !event.oldContentSize.isEmpty) {
+            _isScreenResized = true;
+          }
+
           if (editorBodySize != event.newContentSize) {
             editorBodySize = event.newContentSize;
             cropPainterKey.currentState?.setForegroundPainter(cropPainter);
@@ -2179,7 +2214,6 @@ class CropRotateEditorState extends State<CropRotateEditor>
         },
         onResizeEnd: (event) {
           if (_imageNeedDecode) _decodeImage();
-
           WidgetsBinding.instance.addPostFrameCallback((_) async {
             _setCropRectBounding();
             _updateAllStates();
@@ -2393,7 +2427,8 @@ class CropRotateEditorState extends State<CropRotateEditor>
               ),
               if (cropRotateEditorConfigs.showLayers &&
                   cropRotateEditorConfigs.enableTransformLayers &&
-                  layers != null)
+                  layers != null &&
+                  !_isScreenResized)
                 ClipRRect(
                   clipBehavior: Clip.hardEdge,
                   child: LayerStack(

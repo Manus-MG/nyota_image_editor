@@ -9,7 +9,6 @@ import '/core/mixins/converted_callbacks.dart';
 import '/core/mixins/converted_configs.dart';
 import '/core/mixins/standalone_editor.dart';
 import '/core/models/transform_helper.dart';
-import '/core/platform/io/io_helper.dart';
 import '/core/utils/size_utils.dart';
 import '/features/tune_editor/widgets/tune_editor_bottombar.dart';
 import '/pro_image_editor.dart';
@@ -18,7 +17,6 @@ import '/shared/utils/file_constructor_utils.dart';
 import '/shared/widgets/layer/layer_stack.dart';
 import '/shared/widgets/transform/transformed_content_generator.dart';
 import '../filter_editor/widgets/filtered_widget.dart';
-import 'models/tune_adjustment_matrix.dart';
 import 'utils/tune_presets.dart';
 import 'widgets/tune_editor_appbar.dart';
 
@@ -65,7 +63,7 @@ class TuneEditor extends StatefulWidget
 
   /// Constructs a `TuneEditor` widget with an image loaded from a file.
   factory TuneEditor.file(
-    File file, {
+    dynamic file, {
     Key? key,
     required TuneEditorInitConfigs initConfigs,
   }) {
@@ -110,7 +108,7 @@ class TuneEditor extends StatefulWidget
   factory TuneEditor.autoSource({
     Key? key,
     Uint8List? byteArray,
-    File? file,
+    dynamic file,
     String? assetPath,
     String? networkUrl,
     EditorImage? editorImage,
@@ -124,7 +122,7 @@ class TuneEditor extends StatefulWidget
           : editorImage ??
               EditorImage(
                 byteArray: byteArray,
-                file: file == null ? null : ensureFileInstance(file),
+                file: file,
                 networkUrl: networkUrl,
                 assetPath: assetPath,
               ),

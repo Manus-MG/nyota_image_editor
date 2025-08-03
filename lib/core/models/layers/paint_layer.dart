@@ -41,6 +41,7 @@ class PaintLayer extends Layer {
     super.isDeleted,
     super.meta,
     super.boxConstraints,
+    super.key,
   });
 
   /// Factory constructor for creating a PaintLayer instance from a
@@ -73,20 +74,24 @@ class PaintLayer extends Layer {
         map[keyConverter('item')] ?? {},
         keyConverter: minifier?.convertPaintKey,
       ),
+      boxConstraints: layer.boxConstraints,
     );
   }
 
   /// The custom-painted item to display on the layer.
-  final PaintedModel item;
+  PaintedModel item;
 
   /// The raw size of the painted item before applying scaling.
   final Size rawSize;
 
   /// The opacity level of the drawing.
-  final double opacity;
+  double opacity;
 
   /// Returns the size of the layer after applying the scaling factor.
   Size get size => Size(rawSize.width * scale, rawSize.height * scale);
+
+  @override
+  bool get isPaintLayer => true;
 
   @override
   Map<String, dynamic> toMap() {

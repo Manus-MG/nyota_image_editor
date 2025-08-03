@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -9,9 +8,8 @@ import 'package:flutter/services.dart';
 import '/core/mixins/converted_configs.dart';
 import '/core/mixins/editor_callbacks_mixin.dart';
 import '/core/mixins/editor_configs_mixin.dart';
-import '/core/models/history/last_layer_interaction_position.dart';
 import '/core/models/styles/draggable_sheet_style.dart';
-import '/core/platform/io/io_helper.dart';
+import '/core/services/gesture_manager.dart';
 import '/features/main_editor/widgets/main_editor_appbar.dart';
 import '/features/main_editor/widgets/main_editor_background_image.dart';
 import '/features/main_editor/widgets/main_editor_background_video.dart';
@@ -20,17 +18,18 @@ import '/features/main_editor/widgets/main_editor_helper_lines.dart';
 import '/features/main_editor/widgets/main_editor_layers.dart';
 import '/features/main_editor/widgets/main_editor_remove_layer_area.dart';
 import '/pro_image_editor.dart';
+import '/shared/mixins/editor_zoom.mixin.dart';
 import '/shared/services/content_recorder/widgets/content_recorder.dart';
 import '/shared/services/import_export/export_state_history.dart';
 import '/shared/services/layer_transform_generator.dart';
 import '/shared/utils/file_constructor_utils.dart';
 import '/shared/widgets/adaptive_dialog.dart';
-import '/shared/widgets/extended/extended_interactive_viewer.dart';
+import '/shared/widgets/extended/interactive_viewer/extended_interactive_viewer.dart';
 import '/shared/widgets/screen_resize_detector.dart';
-import '../../shared/mixins/editor_zoom.mixin.dart';
 import '../filter_editor/types/filter_matrix.dart';
 import '../filter_editor/widgets/filter_generator.dart';
-import '../tune_editor/models/tune_adjustment_matrix.dart';
+import '../paint_editor/models/paint_editor_response_model.dart';
+import '../paint_editor/widgets/paint_editor_layer_editor.dart';
 import 'controllers/main_editor_controllers.dart';
 import 'mixins/main_editor_global_keys.dart';
 import 'providers/image_infos_provider.dart';
@@ -39,7 +38,6 @@ import 'services/layer_copy_manager.dart';
 import 'services/layer_interaction_manager.dart';
 import 'services/main_editor_state_history_service.dart';
 import 'services/sizes_manager.dart';
-import 'services/state_manager.dart';
 import 'widgets/main_editor_interactive_content.dart';
 
 /// A widget for image editing using ProImageEditor.
@@ -291,7 +289,7 @@ class ProImageEditor extends StatefulWidget
   factory ProImageEditor.autoSource({
     Key? key,
     Uint8List? byteArray,
-    File? file,
+    dynamic file,
     String? assetPath,
     String? networkUrl,
     EditorImage? editorImage,
@@ -304,7 +302,7 @@ class ProImageEditor extends StatefulWidget
       editorImage: editorImage ??
           EditorImage(
             byteArray: byteArray,
-            file: ensureFileInstance(file),
+            file: file,
             networkUrl: networkUrl,
             assetPath: assetPath,
           ),
@@ -379,12 +377,16 @@ class ProImageEditorState extends State<ProImageEditor>
   /// Helper class for managing interactions with layers in the editor.
   late final LayerInteractionManager layerInteractionManager =
       LayerInteractionManager(
-    helperLinesCallbacks: mainEditorCallbacks?.helperLines,
     onSelectedLayerChanged: mainEditorCallbacks?.onSelectedLayerChanged,
+    helperLinesCallbacks: mainEditorCallbacks?.helperLines,
+    configs: configs,
   );
 
   /// Manager class for managing the state of the editor.
-  final StateManager stateManager = StateManager();
+  late final StateManager stateManager = StateManager(
+    onStateHistoryChange: () =>
+        mainEditorCallbacks?.onStateHistoryChange?.call(stateManager, this),
+  );
 
   late final _stateHistoryService = MainEditorStateHistoryService(
     sizesManager: sizesManager,
@@ -549,6 +551,7 @@ class ProImageEditorState extends State<ProImageEditor>
   }
 
   void _checkInteractiveViewer() {
+    if (mainEditorConfigs.canZoomWhenLayerSelected) return;
     interactiveViewer.currentState?.setEnableInteraction(
       selectedLayerIndex < 0 && layerInteractionManager.selectedLayerId.isEmpty,
     );
@@ -652,6 +655,7 @@ class ProImageEditorState extends State<ProImageEditor>
       _controllers.screenshot
           .addEmptyScreenshot(screenshots: stateManager.screenshots);
     }
+    setState(() {});
   }
 
   /// Replaces a layer at the specified index with a new layer.
@@ -700,7 +704,65 @@ class ProImageEditorState extends State<ProImageEditor>
     int removeLayerIndex = -1,
     bool blockSelectLayer = false,
     bool blockCaptureScreenshot = false,
+    bool autoCorrectZoomOffset = true,
+    bool autoCorrectZoomScale = true,
   }) {
+    void correctOffset() {
+      Offset fractionalOffset = const Offset(-0.5, -0.5);
+      if (layer.isTextLayer) {
+        fractionalOffset = textEditorConfigs.layerFractionalOffset;
+      } else if (layer.isEmojiLayer) {
+        fractionalOffset = emojiEditorConfigs.layerFractionalOffset;
+      } else if (layer.isPaintLayer) {
+        fractionalOffset = paintEditorConfigs.layerFractionalOffset;
+      } else if (layer.isWidgetLayer) {
+        fractionalOffset = stickerEditorConfigs.layerFractionalOffset;
+      }
+
+      if (fractionalOffset != const Offset(-0.5, -0.5)) {
+        final overlayPadding = layerInteraction.style.overlayPadding;
+        double dxCorrected = 0;
+        double dyCorrected = 0;
+
+        if (fractionalOffset.dx == 0) {
+          dxCorrected = -overlayPadding.left;
+        } else if (fractionalOffset.dx == 1) {
+          dxCorrected = overlayPadding.right;
+        }
+        if (fractionalOffset.dy == 0) {
+          dyCorrected = -overlayPadding.top;
+        } else if (fractionalOffset.dy == 1) {
+          dyCorrected = overlayPadding.bottom;
+        }
+
+        layer.offset += Offset(dxCorrected, dyCorrected);
+      }
+    }
+
+    correctOffset();
+
+    final viewer = interactiveViewer.currentState;
+    if (viewer != null) {
+      final scaleDelta = viewer.scaleFactor;
+
+      if (autoCorrectZoomScale) {
+        layer.scale /= scaleDelta;
+      }
+      if (autoCorrectZoomOffset) {
+        final bodySize = sizesManager.bodySize;
+
+        final scaledSize = bodySize * scaleDelta;
+
+        final zoomOffset = Offset(
+              scaledSize.width - bodySize.width,
+              scaledSize.height - bodySize.height,
+            ) /
+            2;
+
+        layer.offset -= (viewer.offset + zoomOffset) / viewer.scaleFactor;
+      }
+    }
+
     layerInteractionManager.selectedLayerId = '';
 
     addHistory(newLayer: layer, blockCaptureScreenshot: blockCaptureScreenshot);
@@ -726,7 +788,10 @@ class ProImageEditorState extends State<ProImageEditor>
   /// Remove a layer from the editor.
   ///
   /// This method removes a layer from the editor and updates the editing state.
-  void removeLayer(Layer? layer) {
+  void removeLayer(
+    Layer? layer, {
+    bool blockCaptureScreenshot = false,
+  }) {
     int layerPos = activeLayers
         .indexWhere((element) => element.id == (layer?.id ?? _tempLayer!.id));
     if (layerPos >= 0) {
@@ -738,7 +803,8 @@ class ProImageEditorState extends State<ProImageEditor>
 
       var layers = _layerCopyManager.copyLayerList(activeLayers)
         ..removeAt(layerPos);
-      addHistory(layers: layers);
+      addHistory(
+          layers: layers, blockCaptureScreenshot: blockCaptureScreenshot);
       setState(() {});
     }
   }
@@ -758,23 +824,11 @@ class ProImageEditorState extends State<ProImageEditor>
   /// editing state.
   void _updateTempLayer() {
     addHistory();
-    layerInteractionManager.selectedLayerId = '';
+    if (!layerInteraction.keepSelectionOnInteraction) {
+      layerInteractionManager.selectedLayerId = '';
+    }
     _checkInteractiveViewer();
     _controllers.uiLayerCtrl.add(null);
-
-    /*
-    String selectedLayerId = _layerInteractionManager.selectedLayerId;
-    _layerInteractionManager.selectedLayerId = '';
-    setState(() {});
-    takeScreenshot();
-    if (selectedLayerId.isNotEmpty) {
-      /// Skip one frame to ensure captured image in separate thread will not
-      /// capture the border.
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        _layerInteractionManager.selectedLayerId = selectedLayerId;
-        setState(() {});
-      });
-    } */
 
     List<Layer> oldLayers =
         stateHistory[stateManager.historyPointer - 1].layers;
@@ -904,6 +958,7 @@ class ProImageEditorState extends State<ProImageEditor>
     if (!_decodeImageCompleter.isCompleted) {
       _decodeImageCompleter.complete(true);
     }
+    mainEditorCallbacks?.onImageDecoded?.call();
 
     if (shouldImportStateHistory) {
       await importStateHistory(stateHistoryConfigs.initStateHistory!);
@@ -993,37 +1048,25 @@ class ProImageEditorState extends State<ProImageEditor>
       ..snapStartPosX = details.focalPoint.dx
       ..snapStartPosY = details.focalPoint.dy;
 
-    if (selectedLayerIndex < 0) return;
+    if (selectedLayerIndex < 0) {
+      interactiveViewer.currentState?.onScaleStart(details);
+      return;
+    }
 
     var layer = activeLayers[selectedLayerIndex];
 
     if (layerInteractionManager.selectedLayerId != layer.id) {
-      layerInteractionManager.selectedLayerId = '';
+      layerInteractionManager.selectedLayerId =
+          layerInteractionManager.layersAreSelectable(configs) ? layer.id : '';
       _checkInteractiveViewer();
     }
 
     _setTempLayer(layer);
-    layerInteractionManager
-      ..baseScaleFactor = layer.scale
-      ..baseAngleFactor = layer.rotation
-      ..snapStartRotation = layer.rotation * 180 / pi
-      ..snapLastRotation = layerInteractionManager.snapStartRotation
-      ..reset();
 
-    double posX = layer.offset.dx;
-    double posY = layer.offset.dy;
+    layerInteractionManager.onScaleStart(
+      selectedLayer: layer,
+    );
 
-    layerInteractionManager
-      ..lastPositionY = posY <= -layerInteractionManager.hitSpan
-          ? LayerLastPosition.top
-          : posY >= layerInteractionManager.hitSpan
-              ? LayerLastPosition.bottom
-              : LayerLastPosition.center
-      ..lastPositionX = posX <= -layerInteractionManager.hitSpan
-          ? LayerLastPosition.left
-          : posX >= layerInteractionManager.hitSpan
-              ? LayerLastPosition.right
-              : LayerLastPosition.center;
     setState(() {});
     mainEditorCallbacks?.handleScaleStart(details);
   }
@@ -1034,7 +1077,11 @@ class ProImageEditorState extends State<ProImageEditor>
   /// layer's position and properties.
   void _onScaleUpdate(ScaleUpdateDetails details) {
     mainEditorCallbacks?.handleScaleUpdate(details);
-    if (selectedLayerIndex < 0 || blockOnScaleUpdateFunction) return;
+    if (blockOnScaleUpdateFunction) return;
+    if (selectedLayerIndex < 0) {
+      interactiveViewer.currentState?.onScaleUpdate(details);
+      return;
+    }
 
     bool beforeShowHorizontalHelperLine =
         layerInteractionManager.showHorizontalHelperLine;
@@ -1055,7 +1102,6 @@ class ProImageEditorState extends State<ProImageEditor>
     }
 
     if (_activeLayer == null) return;
-
     if (layerInteractionManager.rotateScaleLayerSizeHelper != null) {
       layerInteractionManager
         ..freeStyleHighPerformanceScaling =
@@ -1089,9 +1135,14 @@ class ProImageEditorState extends State<ProImageEditor>
           editorScaleFactor: editorScaleFactor,
           removeAreaKey: _removeAreaKey,
           activeLayer: _activeLayer!,
+          layerList: activeLayers,
           context: context,
           detail: details,
-          onHoveredRemoveChanged: _controllers.removeBtnCtrl.add,
+          onHoveredRemoveChanged: (value) {
+            _controllers.removeBtnCtrl.add(null);
+            mainEditorCallbacks?.onHoverRemoveAreaChange?.call(value);
+          },
+          helperLineCtrl: _controllers.helperLineCtrl,
         );
     } else if (details.pointerCount == 2) {
       layerInteractionManager
@@ -1099,12 +1150,12 @@ class ProImageEditorState extends State<ProImageEditor>
             paintEditorConfigs.enableFreeStyleHighPerformanceScaling ??
                 !isDesktop
         ..calculateScaleRotate(
-          editorScaleFactor: editorScaleFactor,
           configs: configs,
           activeLayer: _activeLayer!,
           detail: details,
           editorSize: sizesManager.bodySize,
           screenPaddingHelper: sizesManager.imageMargin,
+          editorScaleFactor: editorScaleFactor,
         );
     }
     mainEditorCallbacks?.handleUpdateLayer(_activeLayer!);
@@ -1118,6 +1169,10 @@ class ProImageEditorState extends State<ProImageEditor>
   /// lines and flags.
   void _onScaleEnd(ScaleEndDetails details) async {
     mainEditorCallbacks?.handleScaleEnd(details);
+
+    if (selectedLayerIndex < 0) {
+      interactiveViewer.currentState?.onScaleEnd(details);
+    }
 
     if (!layerInteractionManager.hoverRemoveBtn && _tempLayer != null) {
       _updateTempLayer();
@@ -1154,6 +1209,11 @@ class ProImageEditorState extends State<ProImageEditor>
 
     if (layer == null || !mounted) return;
 
+    if (layer.text.isEmpty) {
+      removeLayer(layerData);
+      return;
+    }
+
     int i = activeLayers.indexWhere((element) => element.id == layerData.id);
     if (i >= 0) {
       _setTempLayer(layerData);
@@ -1172,6 +1232,7 @@ class ProImageEditorState extends State<ProImageEditor>
         ..offset = layerData.offset
         ..scale = layerData.scale
         ..customSecondaryColor = layer.customSecondaryColor
+        ..maxTextWidth = layer.maxTextWidth
         ..rotation = layerData.rotation;
 
       _updateTempLayer();
@@ -1179,6 +1240,31 @@ class ProImageEditorState extends State<ProImageEditor>
 
     setState(() {});
     mainEditorCallbacks?.handleUpdateUI();
+  }
+
+  void _editPaintLayer(PaintLayer layer) async {
+    PaintLayer? result = await showModalBottomSheet<PaintLayer>(
+      context: context,
+      backgroundColor: paintEditorConfigs.style.editSheetBackgroundColor,
+      showDragHandle: paintEditorConfigs.style.editSheetShowDragHandle,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) =>
+          paintEditorConfigs.widgets.editBottomSheet?.call(layer) ??
+          SafeArea(
+            child: PaintEditorLayerEditor(
+              layer: _layerCopyManager.duplicateLayer(
+                layer,
+                offset: Offset.zero,
+              ) as PaintLayer,
+              configs: configs,
+            ),
+          ),
+    );
+
+    if (result == null) return;
+
+    replaceLayer(index: getLayerStackIndex(layer), layer: result);
   }
 
   /// Initializes the key event listener by adding a handler to the keyboard
@@ -1359,7 +1445,7 @@ class ProImageEditorState extends State<ProImageEditor>
       },
     );
 
-    List<PaintLayer>? paintItemLayers = await openPage<List<PaintLayer>>(
+    PaintEditorResponse? result = await openPage<PaintEditorResponse>(
       PaintEditor.autoSource(
         key: paintEditor,
         editorImage: editorImage,
@@ -1368,7 +1454,11 @@ class ProImageEditorState extends State<ProImageEditor>
           configs: configs,
           callbacks:
               callbacks.copyWith(paintEditorCallbacks: overridenPaintCallbacks),
-          layers: activeLayers,
+          layers: _layerCopyManager.duplicateLayerList(
+            activeLayers,
+            offset: Offset.zero,
+            enableCopyId: true,
+          ),
           theme: _theme,
           mainImageSize: sizesManager.decodedImageSize,
           mainBodySize: sizesManager.bodySize,
@@ -1381,20 +1471,30 @@ class ProImageEditorState extends State<ProImageEditor>
       ),
       duration: const Duration(milliseconds: 150),
     );
-    if (paintItemLayers != null && paintItemLayers.isNotEmpty) {
-      for (var i = 0; i < paintItemLayers.length; i++) {
-        addLayer(
-          paintItemLayers[i],
-          blockSelectLayer: true,
-          blockCaptureScreenshot: i != paintItemLayers.length - 1,
-        );
-      }
 
-      _selectLayerAfterHeroIsDone(paintItemLayers.last.id);
+    if (result == null) return;
 
-      setState(() {});
-      mainEditorCallbacks?.handleUpdateUI();
+    for (var i = 0; i < result.layers.length; i++) {
+      final layer = result.layers[i];
+      addLayer(
+        _layerCopyManager.duplicateLayer(layer, offset: Offset.zero),
+        blockSelectLayer: true,
+        blockCaptureScreenshot: true,
+        autoCorrectZoomOffset: false,
+        autoCorrectZoomScale: false,
+      );
     }
+    for (Layer layer in result.removedLayers) {
+      removeLayer(layer, blockCaptureScreenshot: true);
+    }
+
+    if (result.layers.isNotEmpty) {
+      _selectLayerAfterHeroIsDone(result.layers.last.id);
+      _takeScreenshot();
+    }
+
+    setState(() {});
+    mainEditorCallbacks?.handleUpdateUI();
   }
 
   /// Opens the text editor.
@@ -1443,7 +1543,7 @@ class ProImageEditorState extends State<ProImageEditor>
           configs: configs,
           callbacks: callbacks,
           theme: _theme,
-          layers: stateManager.activeLayers,
+          layers: _layerCopyManager.copyLayerList(activeLayers),
           transformConfigs: stateManager.transformConfigs,
           mainImageSize: sizesManager.decodedImageSize,
           mainBodySize: sizesManager.bodySize,
@@ -1512,7 +1612,7 @@ class ProImageEditorState extends State<ProImageEditor>
             configs: configs,
             callbacks: callbacks,
             transformConfigs: stateManager.transformConfigs,
-            layers: activeLayers,
+            layers: _layerCopyManager.copyLayerList(activeLayers),
             mainImageSize: sizesManager.decodedImageSize,
             mainBodySize: sizesManager.bodySize,
             convertToUint8List: false,
@@ -1557,7 +1657,7 @@ class ProImageEditorState extends State<ProImageEditor>
           configs: configs,
           callbacks: callbacks,
           transformConfigs: stateManager.transformConfigs,
-          layers: activeLayers,
+          layers: _layerCopyManager.copyLayerList(activeLayers),
           mainImageSize: sizesManager.decodedImageSize,
           mainBodySize: sizesManager.bodySize,
           convertToUint8List: false,
@@ -1591,7 +1691,7 @@ class ProImageEditorState extends State<ProImageEditor>
           theme: _theme,
           mainImageSize: sizesManager.decodedImageSize,
           mainBodySize: sizesManager.bodySize,
-          layers: activeLayers,
+          layers: _layerCopyManager.copyLayerList(activeLayers),
           configs: configs,
           callbacks: callbacks,
           transformConfigs: stateManager.transformConfigs,
@@ -1729,16 +1829,60 @@ class ProImageEditorState extends State<ProImageEditor>
     required int oldIndex,
     required int newIndex,
   }) {
-    List<Layer> layers = _layerCopyManager.copyLayerList(activeLayers);
-    if (newIndex > oldIndex) {
-      var item = layers.removeAt(oldIndex);
-      layers.insert(newIndex - 1, item);
-    } else {
-      var item = layers.removeAt(oldIndex);
+    if (oldIndex == newIndex || oldIndex < 0 || newIndex < 0) return;
+
+    final layers = _layerCopyManager.copyLayerList(activeLayers);
+
+    if (oldIndex < layers.length && newIndex <= layers.length) {
+      final item = layers.removeAt(oldIndex);
+
+      // Insert directly at newIndex, no adjustment needed
       layers.insert(newIndex, item);
+
+      addHistory(layers: layers);
+      setState(() {});
     }
-    addHistory(layers: layers);
-    setState(() {});
+  }
+
+  /// Moves the given layer one step forward in the stack.
+  /// Does nothing if the layer is already at the top.
+  void moveLayerForward(Layer layer) {
+    int oldIndex = getLayerStackIndex(layer);
+    if (oldIndex >= activeLayers.length - 1) return;
+    moveLayerListPosition(oldIndex: oldIndex, newIndex: oldIndex + 1);
+  }
+
+  /// Moves the given layer one step backward in the stack.
+  /// Does nothing if the layer is already at the bottom.
+  void moveLayerBackward(Layer layer) {
+    int oldIndex = getLayerStackIndex(layer);
+    if (oldIndex <= 0) return;
+    moveLayerListPosition(oldIndex: oldIndex, newIndex: oldIndex - 1);
+  }
+
+  /// Moves the given layer to the top of the stack.
+  /// Does nothing if the layer is already at the top.
+  void moveLayerToFront(Layer layer) {
+    int oldIndex = getLayerStackIndex(layer);
+    if (oldIndex == -1 || oldIndex == activeLayers.length - 1) return;
+    moveLayerListPosition(
+      oldIndex: oldIndex,
+      newIndex: activeLayers.length - 1,
+    );
+  }
+
+  /// Moves the given layer to the bottom of the stack.
+  /// Does nothing if the layer is already at the bottom.
+  void moveLayerToBack(Layer layer) {
+    int oldIndex = getLayerStackIndex(layer);
+    if (oldIndex <= 0) return;
+    moveLayerListPosition(oldIndex: oldIndex, newIndex: 0);
+  }
+
+  /// Returns the index of the given layer in the active layer stack.
+  /// Returns -1 if the layer is not found.
+  int getLayerStackIndex(Layer layer) {
+    return activeLayers.indexWhere((item) => item.id == layer.id);
   }
 
   /// Undo the last editing action.
@@ -1748,6 +1892,7 @@ class ProImageEditorState extends State<ProImageEditor>
   /// It decreases the edit position, and the image is decoded to reflect
   /// the previous state.
   void undoAction() {
+    GestureManager.instance.stopPropagation();
     if (stateManager.canUndo) {
       setState(() {
         layerInteractionManager.selectedLayerId = '';
@@ -1947,6 +2092,19 @@ class ProImageEditorState extends State<ProImageEditor>
         Uint8List.fromList([]);
   }
 
+  /// Closes all active sub-editors within the main editor, including paint,
+  /// text, crop/rotate, filter, tune, and emoji editors.
+  /// This ensures that any open sub-editor is properly closed and the main
+  /// editor returns to its default state.
+  void closeSubEditor() {
+    paintEditor.currentState?.close();
+    textEditor.currentState?.close();
+    cropRotateEditor.currentState?.close();
+    filterEditor.currentState?.close();
+    tuneEditor.currentState?.close();
+    emojiEditor.currentState?.close();
+  }
+
   /// Close the image editor.
   ///
   /// This function allows the user to close the image editor without saving
@@ -2036,8 +2194,12 @@ class ProImageEditorState extends State<ProImageEditor>
   /// After importing, it updates the UI by calling [setState()] and the
   /// optional [onUpdateUI] callback.
   Future<void> importStateHistory(ImportStateHistory import) async {
+    mainEditorCallbacks?.onImportHistoryStart?.call(this, import);
+
     await _stateHistoryService.importStateHistory(import, context);
     await decodeImage();
+
+    mainEditorCallbacks?.onImportHistoryEnd?.call(this, import);
   }
 
   /// Exports the current state history.
@@ -2055,7 +2217,7 @@ class ProImageEditorState extends State<ProImageEditor>
     if (_imageInfos == null) throw ArgumentError('Failed to decode the image');
     if (!mounted) throw ArgumentError('Context unmounted');
 
-    return await _stateHistoryService.exportStateHistory(
+    return _stateHistoryService.exportStateHistory(
       imageInfos: _imageInfos!,
       configs: configs,
       context: context,
@@ -2259,6 +2421,10 @@ class ProImageEditorState extends State<ProImageEditor>
               child: Listener(
                 behavior: HitTestBehavior.translucent,
                 onPointerDown: (details) {
+                  if (layerInteractionManager.selectedLayerId.isNotEmpty ||
+                      GestureManager.instance.isBlocked) {
+                    return;
+                  }
                   bool isDoubleTap = detectDoubleTap(details);
                   if (!isDoubleTap) return;
 
@@ -2367,10 +2533,19 @@ class ProImageEditorState extends State<ProImageEditor>
       isSubEditorOpen: isSubEditorOpen,
       checkInteractiveViewer: _checkInteractiveViewer,
       onTextLayerTap: _onTextLayerTap,
+      onEditPaintLayer: _editPaintLayer,
       state: this,
       setTempLayer: _setTempLayer,
       onContextMenuToggled: (isOpen) {
         _isContextMenuOpen = isOpen;
+      },
+      onDuplicateLayer: (layer) {
+        var duplication = _layerCopyManager.duplicateLayer(layer);
+        addLayer(
+          duplication,
+          autoCorrectZoomOffset: false,
+          autoCorrectZoomScale: false,
+        );
       },
     );
   }

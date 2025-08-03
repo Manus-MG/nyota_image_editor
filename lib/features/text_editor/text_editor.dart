@@ -87,6 +87,9 @@ class TextEditorState extends State<TextEditor>
 
   late double _fontScale;
 
+  double? get _maxTextWidth =>
+      textEditorConfigs.enableAutoOverflow ? editorBodySize.width - 32 : null;
+
   Color _primaryColor = Colors.black;
 
   /// Gets the primary color.
@@ -152,7 +155,7 @@ class TextEditorState extends State<TextEditor>
       textCtrl.text = widget.layer!.text;
       align = widget.layer!.align;
       _fontScale = widget.layer!.fontScale;
-      backgroundColorMode = widget.layer!.colorMode!;
+      backgroundColorMode = widget.layer!.colorMode;
       if (widget.layer!.customSecondaryColor) {
         _primaryColor = widget.layer!.color;
         _secondaryColor = widget.layer!.background;
@@ -307,20 +310,22 @@ class TextEditorState extends State<TextEditor>
   /// Handles the "Done" action, either by applying changes or closing the
   /// editor.
   void done() {
-    if (textCtrl.text.trim().isNotEmpty) {
-      Navigator.of(context).pop(
-        TextLayer(
-          text: textCtrl.text.trim(),
-          background: _backgroundColor,
-          color: _textColor,
-          align: align,
-          fontScale: _fontScale,
-          colorMode: backgroundColorMode,
-          colorPickerPosition: colorPosition,
-          textStyle: selectedTextStyle,
-          customSecondaryColor: _secondaryColor != null,
-        ),
+    if (textCtrl.text.trim().isNotEmpty || widget.layer != null) {
+      TextLayer layer = TextLayer(
+        text: textCtrl.text.trim(),
+        background: _backgroundColor,
+        color: _textColor,
+        align: align,
+        fontScale: _fontScale,
+        colorMode: backgroundColorMode,
+        colorPickerPosition: colorPosition,
+        textStyle: selectedTextStyle,
+        customSecondaryColor: _secondaryColor != null,
+        maxTextWidth:
+            textEditorConfigs.enableAutoOverflow ? _maxTextWidth : null,
       );
+
+      Navigator.of(context).pop(layer);
     } else {
       Navigator.of(context).pop();
     }
@@ -458,6 +463,7 @@ class TextEditorState extends State<TextEditor>
       selectedTextStyle: selectedTextStyle,
       textColor: _textColor,
       textFontSize: _textFontSize,
+      maxWidth: _maxTextWidth ?? double.infinity,
     );
   }
 }

@@ -4,6 +4,7 @@ import '/features/paint_editor/enums/paint_editor_enum.dart';
 import '../../custom_widgets/paint_editor_widgets.dart';
 import '../../icons/paint_editor_icons.dart';
 import '../../styles/paint_editor_style.dart';
+import '../utils/base_editor_layer_configs.dart';
 import '../utils/editor_safe_area.dart';
 import '../utils/zoom_configs.dart';
 import 'censor_configs.dart';
@@ -36,7 +37,7 @@ export 'censor_configs.dart';
 ///   initialPaintMode: PaintMode.freeStyle,
 /// );
 /// ```
-class PaintEditorConfigs extends ZoomConfigs {
+class PaintEditorConfigs extends ZoomConfigs implements BaseEditorLayerConfigs {
   /// Creates an instance of PaintEditorConfigs with optional settings.
   ///
   /// By default, the editor is enabled, and most drawing tools are enabled.
@@ -51,6 +52,8 @@ class PaintEditorConfigs extends ZoomConfigs {
     super.doubleTapZoomDuration,
     super.doubleTapZoomCurve,
     super.boundaryMargin,
+    this.layerFractionalOffset = const Offset(-0.5, -0.5),
+    this.enableEdit = true,
     this.enableModeFreeStyle = true,
     this.enableModeArrow = true,
     this.enableModeLine = true,
@@ -68,6 +71,12 @@ class PaintEditorConfigs extends ZoomConfigs {
     this.showLayers = true,
     this.enableShareZoomMatrix = true,
     this.polygonConnectionThreshold = 20,
+    this.minStrokeWidth = 1.0,
+    this.maxStrokeWidth = 40.0,
+    this.divisionsStrokeWidth = 39,
+    this.minOpacity = 0.0,
+    this.maxOpacity = 1.0,
+    this.divisionsOpacity = 100,
     this.minScale = double.negativeInfinity,
     this.maxScale = double.infinity,
     this.enableFreeStyleHighPerformanceScaling,
@@ -82,10 +91,28 @@ class PaintEditorConfigs extends ZoomConfigs {
   })  : assert(maxScale >= minScale,
             'maxScale must be greater than or equal to minScale'),
         assert(editorMaxScale > editorMinScale,
-            'editorMaxScale must be greater than editorMinScale');
+            'editorMaxScale must be greater than editorMinScale'),
+        assert(editorMinScale >= 0,
+            'editorMinScale must be greater than or equal to 0'),
+        assert(maxOpacity >= minOpacity,
+            'maxOpacity must be greater than or equal to minOpacity'),
+        assert(minOpacity >= 0 && minOpacity <= 1,
+            'minOpacity must be between 0 and 1'),
+        assert(maxOpacity <= 1, 'maxOpacity must be less than or equal to 1'),
+        assert(maxStrokeWidth >= minStrokeWidth,
+            'maxStrokeWidth must be greater than or equal to minStrokeWidth'),
+        assert(minStrokeWidth >= 0,
+            'minStrokeWidth must be greater than or equal to 0');
+
+  /// {@macro layerFractionalOffset}
+  @override
+  final Offset layerFractionalOffset;
 
   /// Indicates whether the paint editor is enabled.
   final bool enabled;
+
+  /// Indicating whether created layers can be edited.
+  final bool enableEdit;
 
   /// Indicating whether the free-style drawing option is enabled.
   final bool enableModeFreeStyle;
@@ -181,6 +208,24 @@ class PaintEditorConfigs extends ZoomConfigs {
   /// The maximum scale factor from the layer.
   final double maxScale;
 
+  /// Minimum stroke width selectable by the user.
+  final double minStrokeWidth;
+
+  /// Maximum stroke width selectable by the user.
+  final double maxStrokeWidth;
+
+  /// Number of divisions for the stroke width slider.
+  final int divisionsStrokeWidth;
+
+  /// Minimum opacity value (0.0 = fully transparent).
+  final double minOpacity;
+
+  /// Maximum opacity value (1.0 = fully opaque).
+  final double maxOpacity;
+
+  /// Number of divisions for the opacity slider.
+  final int divisionsOpacity;
+
   /// The maximum distance between the first and last point to be auto
   /// connected when drawing polygons.
   final double polygonConnectionThreshold;
@@ -204,7 +249,9 @@ class PaintEditorConfigs extends ZoomConfigs {
   /// [PaintEditorConfigs] with some properties updated while keeping the
   /// others unchanged.
   PaintEditorConfigs copyWith({
+    Offset? layerFractionalOffset,
     bool? enabled,
+    bool? enableEdit,
     bool? enableModeFreeStyle,
     bool? enableModeArrow,
     bool? enableModeLine,
@@ -241,9 +288,18 @@ class PaintEditorConfigs extends ZoomConfigs {
     double? doubleTapZoomFactor,
     Duration? doubleTapZoomDuration,
     Curve? doubleTapZoomCurve,
+    double? minStrokeWidth,
+    double? maxStrokeWidth,
+    int? divisionsStrokeWidth,
+    double? minOpacity,
+    double? maxOpacity,
+    int? divisionsOpacity,
   }) {
     return PaintEditorConfigs(
+      layerFractionalOffset:
+          layerFractionalOffset ?? this.layerFractionalOffset,
       enabled: enabled ?? this.enabled,
+      enableEdit: enableEdit ?? this.enableEdit,
       enableModeFreeStyle: enableModeFreeStyle ?? this.enableModeFreeStyle,
       enableModeArrow: enableModeArrow ?? this.enableModeArrow,
       enableModeLine: enableModeLine ?? this.enableModeLine,
@@ -290,6 +346,12 @@ class PaintEditorConfigs extends ZoomConfigs {
           doubleTapZoomDuration ?? this.doubleTapZoomDuration,
       doubleTapZoomCurve: doubleTapZoomCurve ?? this.doubleTapZoomCurve,
       boundaryMargin: boundaryMargin ?? this.boundaryMargin,
+      minStrokeWidth: minStrokeWidth ?? this.minStrokeWidth,
+      maxStrokeWidth: maxStrokeWidth ?? this.maxStrokeWidth,
+      divisionsStrokeWidth: divisionsStrokeWidth ?? this.divisionsStrokeWidth,
+      minOpacity: minOpacity ?? this.minOpacity,
+      maxOpacity: maxOpacity ?? this.maxOpacity,
+      divisionsOpacity: divisionsOpacity ?? this.divisionsOpacity,
     );
   }
 }

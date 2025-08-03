@@ -50,9 +50,11 @@ class MainEditorLayers extends StatefulWidget {
     required this.isSubEditorOpen,
     required this.checkInteractiveViewer,
     required this.onTextLayerTap,
+    required this.onEditPaintLayer,
     required this.state,
     required this.setTempLayer,
     required this.onContextMenuToggled,
+    required this.onDuplicateLayer,
   });
 
   /// Represents the current state of the editor.
@@ -91,8 +93,14 @@ class MainEditorLayers extends StatefulWidget {
   /// Callback triggered when a text layer is tapped.
   final Function(TextLayer layer) onTextLayerTap;
 
+  /// A callback function that is triggered when a paint layer is edited.
+  final Function(PaintLayer layer) onEditPaintLayer;
+
   /// Callback to temporarily set a layer for interaction.
   final Function(Layer layer) setTempLayer;
+
+  /// Callback triggered when a layer should be copied.
+  final Function(Layer layer) onDuplicateLayer;
 
   /// Callback triggered when the context menu is toggled.
   final Function(bool isOpen)? onContextMenuToggled;
@@ -110,13 +118,17 @@ class _MainEditorLayersState extends State<MainEditorLayers> {
   /// Key for managing mouse cursor regions.
   final _mouseCursorsKey = GlobalKey<ExtendedRebuildMouseRegionState>();
 
+  bool _isScaleInteractionActive = false;
+
   // Helper methods for handling layer interactions
   void _handleEditTap(int index, Layer layer) {
-    if (layer is TextLayer) {
-      widget.onTextLayerTap(layer);
-    } else if (layer is WidgetLayer) {
+    if (layer.isTextLayer) {
+      widget.onTextLayerTap(layer as TextLayer);
+    } else if (layer.isPaintLayer) {
+      widget.onEditPaintLayer(layer as PaintLayer);
+    } else if (layer.isWidgetLayer) {
       widget.callbacks.stickerEditorCallbacks?.onTapEditSticker
-          ?.call(widget.state, layer, index);
+          ?.call(widget.state, layer as WidgetLayer, index);
     }
   }
 
@@ -128,12 +140,17 @@ class _MainEditorLayersState extends State<MainEditorLayers> {
               ? ''
               : layer.id;
       widget.checkInteractiveViewer();
-    } else if (layer is TextLayer && layer.interaction.enableEdit) {
-      widget.onTextLayerTap(layer);
+    } else if (layer.interaction.enableEdit) {
+      if (layer.isTextLayer && widget.configs.textEditor.enableEdit) {
+        widget.onTextLayerTap(layer as TextLayer);
+      } else if (layer.isPaintLayer && widget.configs.paintEditor.enableEdit) {
+        widget.onEditPaintLayer(layer as PaintLayer);
+      }
     }
   }
 
   void _handleTapUp(Layer layer) {
+    if (_isScaleInteractionActive) return;
     if (widget.layerInteractionManager.hoverRemoveBtn) {
       widget.state.removeLayer(layer);
     }
@@ -141,6 +158,7 @@ class _MainEditorLayersState extends State<MainEditorLayers> {
     widget.callbacks.mainEditorCallbacks?.handleUpdateUI();
     widget.state.selectedLayerIndex = -1;
     widget.checkInteractiveViewer();
+    widget.callbacks.mainEditorCallbacks?.onLayerTapUp?.call(layer);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -149,12 +167,15 @@ class _MainEditorLayersState extends State<MainEditorLayers> {
   }
 
   void _handleTapDown(int index, Layer layer) {
+    if (_isScaleInteractionActive) return;
     widget.state.selectedLayerIndex = index;
     widget.setTempLayer(layer);
     widget.checkInteractiveViewer();
+    widget.callbacks.mainEditorCallbacks?.onLayerTapDown?.call(layer);
   }
 
   void _handleScaleRotateDown(int index, Size layerOriginalSize, Layer layer) {
+    _isScaleInteractionActive = true;
     widget.state.selectedLayerIndex = index;
     widget.layerInteractionManager
       ..rotateScaleLayerSizeHelper = layerOriginalSize
@@ -163,6 +184,7 @@ class _MainEditorLayersState extends State<MainEditorLayers> {
   }
 
   void _handleScaleRotateUp() {
+    _isScaleInteractionActive = false;
     widget.layerInteractionManager
       ..rotateScaleLayerSizeHelper = null
       ..rotateScaleLayerScaleHelper = null;
@@ -266,6 +288,7 @@ class _MainEditorLayersState extends State<MainEditorLayers> {
       onTapDown: () => _handleTapDown(index, layer),
       onScaleRotateDown: (details, layerOriginalSize) =>
           _handleScaleRotateDown(index, layerOriginalSize, layer),
+      onDuplicate: () => widget.onDuplicateLayer(layer),
       onContextMenuToggled: widget.onContextMenuToggled,
       onScaleRotateUp: (details) => _handleScaleRotateUp(),
       onRemoveTap: () => _handleRemoveLayer(layer),
