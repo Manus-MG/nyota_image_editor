@@ -19,7 +19,7 @@ import '/shared/services/content_recorder/widgets/content_recorder.dart';
 import '/shared/utils/file_constructor_utils.dart';
 import '/shared/widgets/layer/layer_stack.dart';
 import '/shared/widgets/transform/transformed_content_generator.dart';
-import '../crop_rotate_editor/models/transform_factors.dart';
+import '../crop_rotate_editor/models/transform_configs.dart';
 import '../filter_editor/widgets/filtered_widget.dart';
 import 'widgets/blur_editor_appbar.dart';
 
@@ -205,10 +205,9 @@ class BlurEditorState extends State<BlurEditor>
       returnValue: blurFactor,
       editorImage: widget.editorImage,
       blur: blurFactor,
-      colorFilters: [
-        ...appliedFilters,
-        ...appliedTuneAdjustments.map((item) => item.matrix),
-      ],
+      matrixFilterList: appliedFilters,
+      matrixTuneAdjustmentsList:
+          appliedTuneAdjustments.map((item) => item.matrix).toList(),
       transform: initialTransformConfigs,
     );
     blurEditorCallbacks?.handleDone();

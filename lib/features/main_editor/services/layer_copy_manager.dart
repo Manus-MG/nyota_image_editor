@@ -123,7 +123,6 @@ class LayerCopyManager {
         alpha: layer.color.a,
       ),
       colorMode: layer.colorMode,
-      colorPickerPosition: layer.colorPickerPosition,
       offset: Offset(
         layer.offset.dx + offset.dx,
         layer.offset.dy + offset.dy,
@@ -133,13 +132,12 @@ class LayerCopyManager {
       scale: layer.scale,
       flipX: layer.flipX,
       flipY: layer.flipY,
-      isDeleted: layer.isDeleted,
       meta: layer.meta,
       maxTextWidth: layer.maxTextWidth,
       customSecondaryColor: layer.customSecondaryColor,
       interaction: layer.interaction.copyWith(),
       boxConstraints: layer.boxConstraints?.copyWith(),
-    );
+    )..groupId = layer.groupId;
   }
 
   /// Create a copy of an EmojiLayer instance.
@@ -161,11 +159,10 @@ class LayerCopyManager {
       scale: layer.scale,
       flipX: layer.flipX,
       flipY: layer.flipY,
-      isDeleted: layer.isDeleted,
       meta: layer.meta,
       interaction: layer.interaction.copyWith(),
       boxConstraints: layer.boxConstraints?.copyWith(),
-    );
+    )..groupId = layer.groupId;
   }
 
   /// Create a copy of an WidgetLayer instance.
@@ -187,12 +184,11 @@ class LayerCopyManager {
       scale: layer.scale,
       flipX: layer.flipX,
       flipY: layer.flipY,
-      isDeleted: layer.isDeleted,
       meta: layer.meta,
       interaction: layer.interaction.copyWith(),
       boxConstraints: layer.boxConstraints?.copyWith(),
       exportConfigs: layer.exportConfigs.copyWith(),
-    );
+    )..groupId = layer.groupId;
   }
 
   /// Create a copy of a PaintLayer instance.
@@ -214,12 +210,11 @@ class LayerCopyManager {
       flipX: layer.flipX,
       flipY: layer.flipY,
       meta: layer.meta,
-      isDeleted: layer.isDeleted,
       item: layer.item.copy(),
       rawSize: layer.rawSize,
       opacity: layer.opacity,
       interaction: layer.interaction.copyWith(),
       boxConstraints: layer.boxConstraints?.copyWith(),
-    );
+    )..groupId = layer.groupId;
   }
 }
