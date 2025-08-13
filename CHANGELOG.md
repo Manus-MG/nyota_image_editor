@@ -1,5 +1,17 @@
 # Changelog
 
+## 11.2.3
+- **FIX**(multiselect): Resolve issue where layers could still be selected even when `enableSelection` for the layer was set to `false`. This resolves issue [#628](https://github.com/hm21/pro_image_editor/issues/628).
+
+## 11.2.2
+- **FIX**(main-editor): Resolve issue where the `replaceLayer` function broke the logic that ensured layers resized correctly when the screen size changed. This resolves issue [#624](https://github.com/hm21/pro_image_editor/issues/624) and issue [#626](https://github.com/hm21/pro_image_editor/issues/626).
+
+## 11.2.1
+- **FIX**(state-history): Resolve issue where updating the background-image overwrote previous states.
+
+## 11.2.0
+- **FEAT**(state-history): Added support for undo and redo when the background image is changed in the state history.
+
 ## 11.1.3
 - **FIX**(text-editor): Fixed an issue where long text didn’t wrap correctly.
 - **FIX**(video-editor): Fixed display issues with the trim bar, especially for maximum and minimum durations.

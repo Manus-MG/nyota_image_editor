@@ -397,6 +397,7 @@ class ProImageEditorState extends State<ProImageEditor>
 
   /// Manager class for managing the state of the editor.
   late final StateManager stateManager = StateManager(
+    activeBackgroundImage: widget.editorImage,
     onStateHistoryChange: () =>
         mainEditorCallbacks?.onStateHistoryChange?.call(stateManager, this),
   );
@@ -513,7 +514,7 @@ class ProImageEditorState extends State<ProImageEditor>
   }
 
   /// Get the current background image.
-  late EditorImage? editorImage = widget.editorImage;
+  EditorImage? get editorImage => stateManager.activeBackgroundImage;
 
   /// A [Completer] used to track the completion of a page open operation.
   ///
@@ -735,8 +736,9 @@ class ProImageEditorState extends State<ProImageEditor>
   /// ```
   void replaceLayer({required int index, required Layer layer}) {
     layerInteractionManager.clearSelectedLayers();
+
     addHistory(
-      layers: [...activeLayers]
+      layers: _layerCopyManager.copyLayerList(activeLayers)
         ..removeAt(index)
         ..insert(index, layer),
     );
@@ -817,7 +819,7 @@ class ProImageEditorState extends State<ProImageEditor>
     if (removeLayerIndex >= 0) {
       activeLayers.removeAt(removeLayerIndex);
     }
-    if (!blockSelectLayer) {
+    if (!blockSelectLayer && layer.interaction.enableSelection) {
       layerInteractionManager.addSelectedLayer(layer.id);
     }
     _checkInteractiveViewer();
@@ -878,7 +880,7 @@ class ProImageEditorState extends State<ProImageEditor>
     );
 
     final resolution = widget.videoController!.initialResolution;
-    editorImage = EditorImage(
+    stateManager.activeBackgroundImage = EditorImage(
       byteArray: await createTransparentImage(
         resolution.width,
         resolution.height,
@@ -994,43 +996,43 @@ class ProImageEditorState extends State<ProImageEditor>
     }
   }
 
-  /// Replace the background image with a new image and ensures all relevant
-  /// states are rebuilt to reflect the new background. This includes marking
-  /// all background screenshots as "broken" to trigger re-capture with the
-  /// new image, and rebuilding the current editor state to apply the changes.
+  /// Updates the background image in the editor.
   ///
-  /// The method performs the following steps:
-  /// 1. Updates the editor's background image.
-  /// 2. Decodes the new image to prepare it for rendering.
-  /// 3. Marks all screenshots as "broken" so they are recaptured with the
-  /// updated background.
-  /// 4. Rebuilds the current editor state to ensure the new background is
-  /// applied.
-  Future<void> updateBackgroundImage(EditorImage image) async {
-    editorImage = image;
-    await decodeImage();
-
-    /// Mark all background captured images with the old background image as
-    /// "broken" that the editor capture them with the new image again
-    for (var item in stateManager.screenshots) {
-      item.broken = true;
+  /// If [updateHistory] is `false`, marks all background-captured images that
+  /// use the old-background image as "broken" so they will be recaptured with
+  /// the new image, and set the active background image to [image].
+  ///
+  /// If [updateHistory] is `true`, updates the background images in the
+  /// state manager, replaces the old image with [image], and adds the change
+  /// to the history.
+  ///
+  /// After updating, decodes the new image asynchronously.
+  ///
+  /// [image]: The new background image to set.
+  /// [updateHistory]: Whether to update the history with this change
+  /// (default is `true`).
+  Future<void> updateBackgroundImage(
+    EditorImage image, {
+    bool updateHistory = true,
+  }) async {
+    if (!updateHistory) {
+      /// Mark all background-captured images that use the old background
+      /// image as "broken" so the editor captures them again with the new
+      /// image.
+      for (var item in stateManager.screenshots) {
+        item.broken = true;
+      }
+      stateManager.activeBackgroundImage = image;
+    } else {
+      addHistory();
+      stateManager.updateBackgroundImages(
+        oldImage: editorImage ?? widget.editorImage!,
+        newImage: image,
+      );
     }
 
-    /// Force to rebuild everything
-    int pos = stateManager.historyPointer;
-    EditorStateHistory oldHistory = stateManager.stateHistory[pos];
-
-    stateManager.stateHistory[pos] = EditorStateHistory(
-      layers: oldHistory.layers,
-      transformConfigs: oldHistory.transformConfigs,
-      blur: oldHistory.blur,
-      filters: [...oldHistory.filters],
-      tuneAdjustments: [...oldHistory.tuneAdjustments],
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _backgroundImageColorFilterKey.currentState?.refresh();
-    });
+    await decodeImage();
+    _rebuildController.add(null);
   }
 
   @override
@@ -2357,7 +2359,12 @@ class ProImageEditorState extends State<ProImageEditor>
   /// active layer.
   Layer? selectLayerById(String id, {bool enableMultiSelect = false}) {
     int index = activeLayers.indexWhere((layer) => layer.id == id);
+    if (index == -1) return null;
+
     Layer? layer = activeLayers[index];
+
+    // Check if the layer allows selection
+    if (!layer.interaction.enableSelection) return null;
 
     if (!enableMultiSelect) layerInteractionManager.clearSelectedLayers();
 
@@ -2369,7 +2376,9 @@ class ProImageEditorState extends State<ProImageEditor>
   /// Selects all available layers.
   void selectAllLayers() {
     layerInteractionManager.setSelectedLayers(
-      activeLayers.map((layer) => layer.id),
+      activeLayers
+          .where((layer) => layer.interaction.enableSelection)
+          .map((layer) => layer.id),
     );
     _controllers.uiLayerCtrl.add(null);
   }
