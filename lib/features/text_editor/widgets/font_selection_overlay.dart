@@ -13,10 +13,10 @@ class FontSelectionOverlay extends StatefulWidget {
 
   /// The configuration for the image editor.
   final ProImageEditorConfigs configs;
-  
+
   /// The currently selected text style.
   final TextStyle selectedStyle;
-  
+
   /// Callback function for when a font is selected.
   final Function(TextStyle) onFontSelected;
 
@@ -24,7 +24,7 @@ class FontSelectionOverlay extends StatefulWidget {
   State<FontSelectionOverlay> createState() => _FontSelectionOverlayState();
 }
 
-class _FontSelectionOverlayState extends State<FontSelectionOverlay> 
+class _FontSelectionOverlayState extends State<FontSelectionOverlay>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _slideAnimation;
@@ -49,7 +49,7 @@ class _FontSelectionOverlayState extends State<FontSelectionOverlay>
 
     _allFonts = widget.configs.textEditor.customTextStyles ?? [];
     _filteredFonts = List.from(_allFonts);
-    
+
     _animationController.forward();
   }
 
@@ -66,10 +66,10 @@ class _FontSelectionOverlayState extends State<FontSelectionOverlay>
         _filteredFonts = List.from(_allFonts);
       } else {
         _filteredFonts = _allFonts
-            .where((style) => 
-                (style.fontFamily ?? 'Default')
-                    .toLowerCase()
-                    .contains(query.toLowerCase()))
+            .where((style) =>
+            (style.fontFamily ?? 'Default')
+                .toLowerCase()
+                .contains(query.toLowerCase()))
             .toList();
       }
     });
@@ -176,12 +176,12 @@ class _FontSelectionOverlayState extends State<FontSelectionOverlay>
           prefixIcon: Icon(Icons.search, color: Colors.white60),
           suffixIcon: _searchController.text.isNotEmpty
               ? GestureDetector(
-                  onTap: () {
-                    _searchController.clear();
-                    _filterFonts('');
-                  },
-                  child: Icon(Icons.clear, color: Colors.white60),
-                )
+            onTap: () {
+              _searchController.clear();
+              _filterFonts('');
+            },
+            child: Icon(Icons.clear, color: Colors.white60),
+          )
               : null,
           filled: true,
           fillColor: Colors.white.withValues(alpha: 0.1),
@@ -207,20 +207,32 @@ class _FontSelectionOverlayState extends State<FontSelectionOverlay>
       return _buildEmptyState();
     }
 
+    // Calculate responsive grid layout based on screen width
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 380; // Very small phones
+    final isMediumScreen = screenWidth < 430; // Regular phones
+
+    // Adjust cross axis count and aspect ratio based on screen size
+    final crossAxisCount = isSmallScreen ? 1 : 2;
+    final childAspectRatio = isSmallScreen ? 2.5 : (isMediumScreen ? 1.2 : 1.4);
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmallScreen ? 12 : 16,
+        vertical: 16,
+      ),
       child: GridView.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 1.8, // Increased from 3.0 for taller boxes
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: crossAxisCount,
+          crossAxisSpacing: isSmallScreen ? 12 : 16,
+          mainAxisSpacing: isSmallScreen ? 12 : 16,
+          childAspectRatio: childAspectRatio, // Adjusted for better mobile view
         ),
         itemCount: _filteredFonts.length,
         itemBuilder: (context, index) {
           final style = _filteredFonts[index];
           final isSelected = style.hashCode == widget.selectedStyle.hashCode;
-          
+
           return _buildFontItem(style, isSelected, index);
         },
       ),
@@ -229,32 +241,34 @@ class _FontSelectionOverlayState extends State<FontSelectionOverlay>
 
   Widget _buildFontItem(TextStyle style, bool isSelected, int index) {
     String fontName = style.fontFamily ?? 'Default';
-    
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 380;
+
     return GestureDetector(
       onTap: () => widget.onFontSelected(style),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         decoration: BoxDecoration(
-          gradient: isSelected 
+          gradient: isSelected
               ? LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.blue.withValues(alpha: 0.9),
-                    Colors.blue.withValues(alpha: 0.7),
-                  ],
-                )
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.blue.withValues(alpha: 0.9),
+              Colors.blue.withValues(alpha: 0.7),
+            ],
+          )
               : LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.white.withValues(alpha: 0.15),
-                    Colors.white.withValues(alpha: 0.08),
-                  ],
-                ),
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.white.withValues(alpha: 0.15),
+              Colors.white.withValues(alpha: 0.08),
+            ],
+          ),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected 
+            color: isSelected
                 ? Colors.blue.withValues(alpha: 0.8)
                 : Colors.white.withValues(alpha: 0.3),
             width: isSelected ? 3 : 1,
@@ -283,67 +297,68 @@ class _FontSelectionOverlayState extends State<FontSelectionOverlay>
         child: Stack(
           children: [
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Font Preview
-                  Expanded(
-                    flex: 3,
+                  Flexible(
+                    flex: 2,
                     child: Container(
                       width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
                       decoration: BoxDecoration(
-                        color: isSelected 
+                        color: isSelected
                             ? Colors.white.withValues(alpha: 0.15)
                             : Colors.white.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Center(
-                        child: Text(
-                          'Aa Bb',
-                          style: style.copyWith(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'Aa Bb',
+                            style: style.copyWith(
+                              color: Colors.white,
+                              fontSize: isSmallScreen ? 24 : 28,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                  
-                  const SizedBox(height: 12),
-                  
+
+                  const SizedBox(height: 8),
+
                   // Font Name
-                  Expanded(
-                    flex: 1,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isSelected 
-                            ? Colors.white.withValues(alpha: 0.2)
-                            : Colors.black.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Center(
-                        child: Text(
-                          fontName,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Colors.white.withValues(alpha: 0.2)
+                          : Colors.black.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Center(
+                      child: Text(
+                        fontName,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: isSmallScreen ? 11 : 12,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                         ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            
+
             // Selection Indicator
             if (isSelected)
               Positioned(
