@@ -1,3 +1,6 @@
+// ignore_for_file: deprecated_member_use_from_same_package
+// TODO: Remove the deprecated values when releasing version 12.0.0.
+
 // Flutter imports:
 import 'package:flutter/widgets.dart';
 
@@ -7,6 +10,7 @@ import '../icons/text_editor_icons.dart';
 import '../layers/enums/layer_background_mode.dart';
 import '../styles/text_editor_style.dart';
 import 'utils/base_editor_layer_configs.dart';
+import 'utils/base_sub_editor_configs.dart';
 import 'utils/editor_safe_area.dart';
 
 export '../custom_widgets/text_editor_widgets.dart';
@@ -28,14 +32,20 @@ export '../styles/text_editor_style.dart';
 ///   initFontSize: 24.0,
 /// );
 /// ```
-class TextEditorConfigs implements BaseEditorLayerConfigs {
+class TextEditorConfigs
+    implements BaseEditorLayerConfigs, BaseSubEditorConfigs {
   /// Creates an instance of TextEditorConfigs with optional settings.
   ///
   /// By default, the text editor is enabled, and most text formatting options
   /// are enabled. The initial font size is set to 24.0.
   const TextEditorConfigs({
     this.layerFractionalOffset = const Offset(-0.5, -0.5),
+    this.enableGesturePop = true,
     this.enableSuggestions = true,
+    @Deprecated(
+      'Use tools inside MainEditorConfigs instead, e.g. tools: '
+      '[SubEditorMode.text]',
+    )
     this.enabled = true,
     this.enableEdit = true,
     this.enableAutocorrect = true,
@@ -44,6 +54,7 @@ class TextEditorConfigs implements BaseEditorLayerConfigs {
     this.showFontScaleButton = true,
     this.showBackgroundModeButton = true,
     this.enableMainEditorZoomFactor = false,
+    this.enableTapOutsideToSave = true,
     this.enableAutoOverflow = true,
     this.initFontSize = 24.0,
     this.initialPrimaryColor = const Color(0xFF000000),
@@ -70,7 +81,15 @@ class TextEditorConfigs implements BaseEditorLayerConfigs {
   @override
   final Offset layerFractionalOffset;
 
+  /// {@macro enableGesturePop}
+  @override
+  final bool enableGesturePop;
+
   /// Indicates whether the text editor is enabled.
+  @Deprecated(
+    'Use tools inside MainEditorConfigs instead, e.g. tools: '
+    '[SubEditorMode.text]',
+  )
   final bool enabled;
 
   /// Indicating whether created layers can be edited.
@@ -92,6 +111,14 @@ class TextEditorConfigs implements BaseEditorLayerConfigs {
   /// A flag to enable or disable scaling of the text field in sync with the
   /// editor's zoom level.
   final bool enableMainEditorZoomFactor;
+
+  /// Whether tapping outside the text field saves the text annotation.
+  ///
+  /// When `true` (default), tapping outside the text input area will save
+  /// the current text and close the editor. When `false`, tapping outside
+  /// will not trigger the save action, requiring users to use the done
+  /// button or other explicit save actions.
+  final bool enableTapOutsideToSave;
 
   /// The initial font size for text.
   final double initFontSize;
@@ -181,10 +208,12 @@ class TextEditorConfigs implements BaseEditorLayerConfigs {
   /// others unchanged.
   TextEditorConfigs copyWith({
     Offset? layerFractionalOffset,
+    bool? enableGesturePop,
     bool? enabled,
     bool? enableEdit,
     bool? showSelectFontStyleBottomBar,
     bool? enableMainEditorZoomFactor,
+    bool? enableTapOutsideToSave,
     bool? enableAutoOverflow,
     Color? initialPrimaryColor,
     Color? initialSecondaryColor,
@@ -209,6 +238,7 @@ class TextEditorConfigs implements BaseEditorLayerConfigs {
     return TextEditorConfigs(
       layerFractionalOffset:
           layerFractionalOffset ?? this.layerFractionalOffset,
+      enableGesturePop: enableGesturePop ?? this.enableGesturePop,
       safeArea: safeArea ?? this.safeArea,
       enabled: enabled ?? this.enabled,
       enableEdit: enableEdit ?? this.enableEdit,
@@ -216,6 +246,8 @@ class TextEditorConfigs implements BaseEditorLayerConfigs {
           showSelectFontStyleBottomBar ?? this.showSelectFontStyleBottomBar,
       enableMainEditorZoomFactor:
           enableMainEditorZoomFactor ?? this.enableMainEditorZoomFactor,
+      enableTapOutsideToSave:
+          enableTapOutsideToSave ?? this.enableTapOutsideToSave,
       enableAutoOverflow: enableAutoOverflow ?? this.enableAutoOverflow,
       initialPrimaryColor: initialPrimaryColor ?? this.initialPrimaryColor,
       initialSecondaryColor:

@@ -1,10 +1,61 @@
 # Changelog
 
+## 11.12.0
+- **FEAT**(text-editor): Added `enableTapOutsideToSave` configuration to `TextEditorConfigs` to control whether tapping outside the text field saves the text annotation. 
+- **FIX**(paint-editor): Resolve draw delay in the freestyle mode. Resolves issue [#696](https://github.com/hm21/pro_image_editor/issues/696).
+
+## 11.11.0
+- **FEAT**(dashDotLine): Added new paint-mode "dashDotLine".
+
+## 11.10.1
+- **FIX**(callbacks): Resolve issue where the callback `onDone` in mainEditorCallbacks is not triggered. Resolves issue [#681](https://github.com/hm21/pro_image_editor/issues/681).
+
+## 11.10.0
+- **FEAT**: Add support for blank editors via `ProImageEditor.blank` constructor, allowing creation of editors without an initial image.
+
+## 11.9.1
+- **FIX**(text-editor): Resolve the issue of the theme changing during the hero flight. Resolves issue [#677](https://github.com/hm21/pro_image_editor/issues/677).
+
+## 11.9.0
+- **FEAT**(main-editor): Introduced `tools` in `MainEditorConfigs` to configure available sub-editors and their order, replacing old `enableModeX` flags with a cleaner list-based API.  
+- **FEAT**(paint-editor): Introduced `tools` in `PaintEditorConfigs` to define available paint modes and their order, deprecating individual `enableModeX` flags.  
+- **FEAT**(crop-rotate-editor): Introduced `tools` in `CropRotateEditorConfigs` with a new `CropRotateTool` enum for rotate, flip, aspect ratio, and reset actions, deprecating the old `showXButton` flags.  
+
+## 11.8.0
+- **FEAT**(callbacks): Add `onEditLayer` to `PaintEditorCallbacks`, allowing custom paint-layer editing logic (e.g., via a side menu). This was requested in [#673](https://github.com/hm21/pro_image_editor/issues/673).
+- **FEAT**(layers): Add `copyWith` method to all layer classes for easier cloning and modification.
+
+## 11.7.0
+- **FEAT**(sub-editors): Add `enableGesturePop` config to all sub-editors to control whether user back navigation (hardware back button, predictive back swipe) is allowed.
+
+## 11.6.0
+- **FEAT**(eraser): Extend the eraser in the paint editor so that its size and mode can be changed dynamically.
+
+## 11.5.8
+- **FIX**(eraser): Resolve the issue of delayed erasing. Resolves issue [#662](https://github.com/hm21/pro_image_editor/issues/662).
+
+## 11.5.7
+- **DOCS**(readme): Remove outdated information about HTML renderer support in Flutter.
+
+## 11.5.6
+- **FIX**(image-generation): Resolve issue where updating the background image could throw an error when exporting the image. Resolves issue [#652](https://github.com/hm21/pro_image_editor/issues/652).
+
+## 11.5.5
+- **FIX**(video-trim-bar): Resolve issue where `maxDuration` displayed an incorrect time span when its value exceeded the video duration. Resolves issue [#648](https://github.com/hm21/pro_image_editor/issues/648).
+
+## 11.5.4
+- **FIX**(iOS): Fixes scroll glitch in the bottom bar. Resolves issue [#640](https://github.com/hm21/pro_image_editor/issues/640).
+
+## 11.5.3
+- **FIX**(video-editor): Fixed issue where state history import didn't work in the video editor. Resolves video-editor discussion [#50](https://github.com/hm21/pro_video_editor/discussions/50).
+
+## 11.5.2
+- **FEAT**(style): Add missing `editSheetColor` to paint-editor styles.
+
 ## 11.5.1
 - **FIX**(recorder): Fix slow image generation after transforming layers when layer-selection is disabled.
 - **FIX**(emoji-picker): Fix null error in the console from the emoji picker. Resolves issue [#642](https://github.com/hm21/pro_image_editor/issues/642).
 - **FEAT**(debug): Add extensive `debugFillProperties` for better debugging.
-
 
 ## 11.5.0
 - **FEAT**(eraser): The eraser in the PaintEditor now removes only partial areas of the painting by default, instead of the entire object. This behavior can be adjusted in the PaintEditorConfigs using `eraserMode` and `eraserSize`.

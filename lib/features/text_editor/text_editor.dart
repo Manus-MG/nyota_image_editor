@@ -329,6 +329,7 @@ class TextEditorState extends State<TextEditor>
     return LayoutBuilder(
       builder: (context, constraints) {
         return ExtendedPopScope(
+          canPop: textEditorConfigs.enableGesturePop,
           child: Theme(
             data: widget.theme.copyWith(
                 tooltipTheme:
@@ -395,7 +396,7 @@ class TextEditorState extends State<TextEditor>
 
       return GestureDetector(
         behavior: HitTestBehavior.translucent,
-        onTap: done,
+        onTap: textEditorConfigs.enableTapOutsideToSave ? done : null,
         child: Stack(
           children: [
             if (textEditorConfigs.widgets.bodyItems != null)
