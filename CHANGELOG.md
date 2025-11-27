@@ -1,5 +1,18 @@
 # Changelog
 
+## 11.14.0
+- **FEAT**(crop-editor): Add `cropOverlayOpacity` and `cropOverlayInteractionOpacity` to control the opacity outside the crop area when editing an image.
+
+## 11.13.0
+- **FEAT**(text-editor): Add `enableImageBoundaryTextWrap` property to `TextEditorConfigs` to automatically wrap text at the actual image boundaries instead of screen boundaries. More details in PR [#704](https://github.com/hm21/pro_image_editor/pull/704).
+- **FIX**(main-editor): Resolve apple pencil tap detection for text layer editing. More details in PR [#705](https://github.com/hm21/pro_image_editor/pull/705).
+
+## 11.12.2
+- **FEAT**(main-editor): Make scaling actions done through desktop interactions (mouse scroll or keyboard) consistent between layer types and proportional to the current size of the layer.
+
+## 11.12.1
+- **FIX**(RTL): Resolve incorrect layer selection box location. Resolves issue [#698](https://github.com/hm21/pro_image_editor/issues/698). 
+
 ## 11.12.0
 - **FEAT**(text-editor): Added `enableTapOutsideToSave` configuration to `TextEditorConfigs` to control whether tapping outside the text field saves the text annotation. 
 - **FIX**(paint-editor): Resolve draw delay in the freestyle mode. Resolves issue [#696](https://github.com/hm21/pro_image_editor/issues/696).
