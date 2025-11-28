@@ -203,6 +203,9 @@ class TextLayer extends Layer {
     int maxDecimalPlaces = kMaxSafeDecimalPlaces,
     bool enableMinify = false,
   }) {
+    // FIX: Store textStyle in local variable for null-safe access
+    final style = textStyle;
+
     return {
       ...super.toMap(
         maxDecimalPlaces: maxDecimalPlaces,
@@ -218,18 +221,17 @@ class TextLayer extends Layer {
       if (maxTextWidth != null)
         'maxTextWidth': maxTextWidth?.roundSmart(maxDecimalPlaces),
       if (customSecondaryColor) 'customSecondaryColor': customSecondaryColor,
-      if (textStyle?.fontFamily != null) 'fontFamily': textStyle?.fontFamily,
-      if (textStyle?.fontStyle != null) 'fontStyle': textStyle?.fontStyle!.name,
-      if (textStyle?.fontWeight != null)
-        'fontWeight': textStyle?.fontWeight!.value,
-      if (textStyle?.letterSpacing != null)
-        'letterSpacing': textStyle?.letterSpacing?.roundSmart(maxDecimalPlaces),
-      if (textStyle?.height != null)
-        'height': textStyle?.height?.roundSmart(maxDecimalPlaces),
-      if (textStyle?.wordSpacing != null)
-        'wordSpacing': textStyle?.wordSpacing?.roundSmart(maxDecimalPlaces),
-      if (textStyle?.decoration != null)
-        'decoration': textStyle?.decoration.toString(),
+      // FIX: Use local variable for proper null checks
+      if (style?.fontFamily != null) 'fontFamily': style!.fontFamily,
+      if (style?.fontStyle != null) 'fontStyle': style!.fontStyle!.name,
+      if (style?.fontWeight != null) 'fontWeight': style!.fontWeight!.value,
+      if (style?.letterSpacing != null)
+        'letterSpacing': style!.letterSpacing!.roundSmart(maxDecimalPlaces),
+      if (style?.height != null)
+        'height': style!.height!.roundSmart(maxDecimalPlaces),
+      if (style?.wordSpacing != null)
+        'wordSpacing': style!.wordSpacing!.roundSmart(maxDecimalPlaces),
+      if (style?.decoration != null) 'decoration': style!.decoration.toString(),
     };
   }
 
@@ -240,6 +242,11 @@ class TextLayer extends Layer {
     bool enableMinify = false,
   }) {
     var paintLayer = layer as TextLayer;
+
+    // FIX: Store textStyle references in local variables for null-safe access
+    final currentStyle = textStyle;
+    final refStyle = paintLayer.textStyle;
+
     return {
       ...super.toMapFromReference(
         layer,
@@ -255,20 +262,26 @@ class TextLayer extends Layer {
         'colorMode': LayerBackgroundMode.values[colorMode.index].name,
       if (paintLayer.customSecondaryColor != customSecondaryColor)
         'customSecondaryColor': customSecondaryColor,
-      if (paintLayer.textStyle?.fontFamily != textStyle?.fontFamily)
-        'fontFamily': textStyle?.fontFamily,
-      if (paintLayer.textStyle?.fontStyle != textStyle?.fontStyle)
-        'fontStyle': textStyle?.fontStyle!.name,
-      if (paintLayer.textStyle?.fontWeight != textStyle?.fontWeight)
-        'fontWeight': textStyle?.fontWeight!.value,
-      if (paintLayer.textStyle?.letterSpacing != textStyle?.letterSpacing)
-        'letterSpacing': textStyle?.letterSpacing?.roundSmart(maxDecimalPlaces),
-      if (paintLayer.textStyle?.height != textStyle?.height)
-        'height': textStyle?.height?.roundSmart(maxDecimalPlaces),
-      if (paintLayer.textStyle?.wordSpacing != textStyle?.wordSpacing)
-        'wordSpacing': textStyle?.wordSpacing?.roundSmart(maxDecimalPlaces),
-      if (paintLayer.textStyle?.decoration != textStyle?.decoration)
-        'decoration': textStyle?.decoration.toString(),
+      // FIX: Only include if current style property is not null
+      if (refStyle?.fontFamily != currentStyle?.fontFamily)
+        'fontFamily': currentStyle?.fontFamily,
+      // FIX: Added null check for currentStyle?.fontStyle before accessing .name
+      if (refStyle?.fontStyle != currentStyle?.fontStyle &&
+          currentStyle?.fontStyle != null)
+        'fontStyle': currentStyle!.fontStyle!.name,
+      // FIX: Added null check for currentStyle?.fontWeight before accessing .value
+      if (refStyle?.fontWeight != currentStyle?.fontWeight &&
+          currentStyle?.fontWeight != null)
+        'fontWeight': currentStyle!.fontWeight!.value,
+      if (refStyle?.letterSpacing != currentStyle?.letterSpacing)
+        'letterSpacing':
+            currentStyle?.letterSpacing?.roundSmart(maxDecimalPlaces),
+      if (refStyle?.height != currentStyle?.height)
+        'height': currentStyle?.height?.roundSmart(maxDecimalPlaces),
+      if (refStyle?.wordSpacing != currentStyle?.wordSpacing)
+        'wordSpacing': currentStyle?.wordSpacing?.roundSmart(maxDecimalPlaces),
+      if (refStyle?.decoration != currentStyle?.decoration)
+        'decoration': currentStyle?.decoration?.toString(),
       if (paintLayer.maxTextWidth != maxTextWidth)
         'maxTextWidth': maxTextWidth?.roundSmart(maxDecimalPlaces),
     };
